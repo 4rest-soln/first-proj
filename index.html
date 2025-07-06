@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF GIF - PDF에 움직이는 이미지 넣기</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <header class="header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="#4F46E5"/>
+                    <path d="M8 12H24M8 16H20M8 20H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="24" cy="20" r="4" fill="#60A5FA"/>
+                </svg>
+                <span>PDF GIF</span>
+            </div>
+            <nav class="nav">
+                <a href="#how-it-works">사용 방법</a>
+            </nav>
+        </header>
+
+        <!-- 메인 섹션 -->
+        <main class="main">
+            <div class="hero">
+                <h1>PDF에 <span class="highlight">움직이는 GIF</span>를<br>간편하게 삽입하세요</h1>
+                <p class="subtitle">PDF 문서에 생동감을 더해보세요. 원하는 위치에 GIF를 넣고 재생 버튼으로 컨트롤하세요.</p>
+            </div>
+
+            <!-- 업로드 영역 -->
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-box" id="pdfUploadBox">
+                    <input type="file" id="pdfInput" accept=".pdf" hidden>
+                    <div class="upload-content">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <path d="M24 32V16M24 16L18 22M24 16L30 22" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M40 24C40 32.8366 32.8366 40 24 40C15.1634 40 8 32.8366 8 24C8 15.1634 15.1634 8 24 8C32.8366 8 40 15.1634 40 24Z" stroke="#6B7280" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <h3>PDF 파일 선택</h3>
+                        <p>또는 여기에 파일을 드래그하세요</p>
+                        <button class="btn-primary" onclick="document.getElementById('pdfInput').click()">
+                            파일 선택하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 작업 영역 (초기 숨김) -->
+            <div class="workspace" id="workspace" style="display: none;">
+                <!-- 단계 표시 -->
+                <div class="steps">
+                    <div class="step active" data-step="1">
+                        <div class="step-number">1</div>
+                        <span>페이지 선택</span>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-number">2</div>
+                        <span>영역 지정</span>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-number">3</div>
+                        <span>GIF 삽입</span>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-number">4</div>
+                        <span>다운로드</span>
+                    </div>
+                </div>
+
+                <!-- 페이지 썸네일 그리드 -->
+                <div class="page-grid" id="pageGrid"></div>
+
+                <!-- 페이지 상세 뷰 (초기 숨김) -->
+                <div class="page-detail" id="pageDetail" style="display: none;">
+                    <div class="detail-header">
+                        <button class="btn-back" onclick="backToGrid()">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            페이지 목록으로
+                        </button>
+                        <span class="page-info" id="pageInfo">1 / 1 페이지</span>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="pageCanvas"></canvas>
+                        <div class="selection-overlay" id="selectionOverlay" style="display: none;"></div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn-secondary" onclick="resetSelection()">영역 다시 선택</button>
+                        <button class="btn-primary" id="btnAddGif" onclick="proceedToGifUpload()" disabled>
+                            GIF 추가하기
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GIF 업로드 모달 -->
+                <div class="modal" id="gifModal" style="display: none;">
+                    <div class="modal-content">
+                        <h3>GIF 파일 선택</h3>
+                        <p>선택한 영역에 삽입할 GIF 파일을 업로드하세요</p>
+                        
+                        <div class="gif-upload-box">
+                            <input type="file" id="gifInput" accept=".gif" hidden>
+                            <div class="upload-preview" id="gifPreview">
+                                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                                    <rect x="8" y="8" width="48" height="48" rx="8" stroke="#E5E7EB" stroke-width="2"/>
+                                    <path d="M24 32L30 26L36 32M30 26V40" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <p>GIF 파일을 선택하거나 드래그하세요</p>
+                            </div>
+                            <button class="btn-primary full-width" onclick="document.getElementById('gifInput').click()">
+                                GIF 선택하기
+                            </button>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button class="btn-secondary" onclick="closeGifModal()">취소</button>
+                            <button class="btn-primary" id="btnProcessGif" onclick="processGif()" disabled>
+                                GIF 삽입하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 처리 중 표시 -->
+                <div class="processing-overlay" id="processingOverlay" style="display: none;">
+                    <div class="processing-content">
+                        <div class="spinner"></div>
+                        <h3 id="processingTitle">PDF 처리 중...</h3>
+                        <p id="processingMessage">잠시만 기다려주세요</p>
+                    </div>
+                </div>
+
+                <!-- 완료 화면 -->
+                <div class="completion-screen" id="completionScreen" style="display: none;">
+                    <div class="completion-content">
+                        <div class="success-icon">
+                            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                                <circle cx="32" cy="32" r="32" fill="#10B981" fill-opacity="0.1"/>
+                                <path d="M20 32L28 40L44 24" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h2>PDF 생성 완료!</h2>
+                        <p>GIF가 성공적으로 삽입되었습니다</p>
+                        <div class="completion-actions">
+                            <button class="btn-primary" onclick="downloadPDF()">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M10 14L6 10M10 14L14 10M10 14V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                PDF 다운로드
+                            </button>
+                            <button class="btn-secondary" onclick="startOver()">새 파일 시작</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 사용 방법 섹션 -->
+        <section class="how-it-works" id="how-it-works">
+            <h2>간단한 4단계로 완성</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📄</div>
+                    <h3>PDF 업로드</h3>
+                    <p>편집할 PDF 파일을 선택하세요</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>위치 지정</h3>
+                    <p>GIF를 넣을 페이지와 영역을 선택하세요</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎬</div>
+                    <h3>GIF 삽입</h3>
+                    <p>원하는 GIF 파일을 업로드하세요</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✨</div>
+                    <h3>완성!</h3>
+                    <p>재생 버튼이 포함된 PDF를 다운로드하세요</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 스크립트 로드 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+    <script src="https://unpkg.com/gifuct-js@2.1.2/dist/gifuct-js.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
