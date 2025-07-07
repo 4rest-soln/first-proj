@@ -417,7 +417,6 @@ async function processGif() {
             const frame = gifFrames[i];
             const pngDataUrl = frame.canvas.toDataURL('image/png');
             const pngData = await fetch(pngDataUrl).then(res => res.arrayBuffer());
-            const pngBuffer = new Uint8Array(pngData); // 수정된 부분
             const pngImage = await pdfLibDoc.embedPng(pngData);
             
             // 이미지 필드 생성
