@@ -1212,8 +1212,23 @@
             updateStep(4);
             
             try {
-                // PDF-lib용 새로운 ArrayBuffer 생성 (File 객체에서 직접 읽기)
-                const pdfLibArrayBuffer = await currentPdfFile.arrayBuffer();
+                // ✅ 핵심: PDF.js 인스턴스 완전히 정리
+                if (pdfDoc) {
+                    await pdfDoc.destroy();
+                    pdfDoc = null;
+                }
+                
+                // 잠시 대기 (메모리 정리 시간)
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // ✅ FileReader를 사용해서 완전히 새로운 방식으로 읽기
+                const pdfLibArrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(currentPdfFile);
+                });
+                
                 const pdfLibDoc = await PDFLib.PDFDocument.load(pdfLibArrayBuffer);
                 const pages = pdfLibDoc.getPages();
                 const page = pages[selectedPage - 1];
