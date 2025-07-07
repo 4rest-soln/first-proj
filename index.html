@@ -820,14 +820,13 @@
     <!-- 스크립트 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://unpkg.com/gifuct-js@2.1.2/dist/gifuct-js.umd.js"></script>
     <script>
         // PDF.js 초기화
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         // 전역 변수
         let pdfDoc = null;
-        let currentPdfData = null; // ArrayBuffer 대신 직접 데이터 저장
+        let currentPdfFile = null; // File 객체를 직접 저장
         let selectedPage = null;
         let selectedArea = null;
         let gifFrames = null;
@@ -931,12 +930,12 @@
             showProcessing('PDF 로딩 중...', '페이지를 분석하고 있습니다');
             
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                // ArrayBuffer를 복사하여 저장
-                currentPdfData = arrayBuffer.slice(0);
+                // File 객체를 저장 (원본 유지)
+                currentPdfFile = file;
                 
-                // PDF.js로 로드
-                const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+                // PDF.js용 별도 ArrayBuffer 생성
+                const pdfJsArrayBuffer = await file.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument(pdfJsArrayBuffer);
                 pdfDoc = await loadingTask.promise;
                 
                 // 페이지 썸네일 생성
@@ -1176,12 +1175,24 @@
                     reader.onload = function(e) {
                         gifPreview.innerHTML = `<img src="${e.target.result}" alt="GIF Preview">`;
                         btnProcessGif.disabled = false;
+                        
+                        // GIF 이미지를 gifFrames에 저장 (단순화)
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+                            
+                            gifFrames = [{
+                                canvas: canvas,
+                                delay: 100
+                            }];
+                        };
+                        img.src = e.target.result;
                     };
                     reader.readAsDataURL(file);
-                    
-                    // GIF 파싱
-                    const arrayBuffer = await file.arrayBuffer();
-                    await parseGif(new Uint8Array(arrayBuffer));
                 } catch (error) {
                     console.error('GIF 로드 실패:', error);
                     alert('GIF 파일을 읽을 수 없습니다.');
@@ -1189,13 +1200,69 @@
             }
         }
 
-        // GIF 파싱 (gifuct-js 사용)
-        async function parseGif(data) {
+        // GIF 처리 및 PDF 생성
+        async function processGif() {
+            if (!gifFrames || !selectedArea || !currentPdfFile) {
+                alert('필요한 데이터가 없습니다.');
+                return;
+            }
+            
+            closeGifModal();
+            showProcessing('GIF 삽입 중...', 'PDF를 생성하고 있습니다');
+            updateStep(4);
+            
             try {
-                const gif = gifuct.parseGIF(data);
-                const frames = gifuct.decompressFrames(gif, true);
+                // PDF-lib용 새로운 ArrayBuffer 생성 (File 객체에서 직접 읽기)
+                const pdfLibArrayBuffer = await currentPdfFile.arrayBuffer();
+                const pdfLibDoc = await PDFLib.PDFDocument.load(pdfLibArrayBuffer);
+                const pages = pdfLibDoc.getPages();
+                const page = pages[selectedPage - 1];
                 
-                gifFrames = frames.map(frame => {
+                // 페이지 크기 가져오기
+                const { width: pageWidth, height: pageHeight } = page.getSize();
+                
+                // Canvas 크기와 PDF 페이지 크기 비율 계산
+                const scaleX = pageWidth / pageCanvas.width;
+                const scaleY = pageHeight / pageCanvas.height;
+                
+                // 선택 영역을 PDF 좌표로 변환
+                const pdfX = selectedArea.x * scaleX;
+                const pdfY = pageHeight - (selectedArea.y + selectedArea.height) * scaleY;
+                const pdfWidth = selectedArea.width * scaleX;
+                const pdfHeight = selectedArea.height * scaleY;
+                
+                // GIF 이미지를 PNG로 변환하여 삽입
+                const firstFrame = gifFrames[0];
+                const pngDataUrl = firstFrame.canvas.toDataURL('image/png');
+                const pngData = await fetch(pngDataUrl).then(res => res.arrayBuffer());
+                const pngImage = await pdfLibDoc.embedPng(pngData);
+                
+                // 이미지를 페이지에 그리기
+                page.drawImage(pngImage, {
+                    x: pdfX,
+                    y: pdfY,
+                    width: pdfWidth,
+                    height: pdfHeight,
+                });
+                
+                // PDF 저장
+                const pdfBytes = await pdfLibDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                // 다운로드 준비
+                window.generatedPdfUrl = url;
+                window.generatedPdfName = `gif_inserted_${Date.now()}.pdf`;
+                
+                hideProcessing();
+                showCompletion();
+                
+            } catch (error) {
+                console.error('PDF 생성 실패:', error);
+                alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
+                hideProcessing();
+            }
+        }map(frame => {
                     const canvas = document.createElement('canvas');
                     canvas.width = gif.lsd.width;
                     canvas.height = gif.lsd.height;
