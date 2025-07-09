@@ -251,119 +251,135 @@
             font-size: 14px;
         }
 
-        /* 페이지 그리드 */
-        .page-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 24px;
+        /* 페이지 선택기 */
+        .page-selector {
             margin-bottom: 40px;
         }
 
-        .page-thumbnail {
-            background: white;
-            border: 2px solid var(--gray-200);
+        .pdf-info {
+            background: var(--gray-50);
             border-radius: 12px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: var(--transition);
-            position: relative;
-        }
-
-        .page-thumbnail:hover {
-            border-color: var(--primary-color);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .page-thumbnail.selected {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        .page-thumbnail canvas {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .page-number {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        /* 페이지 상세 뷰 */
-        .page-detail {
-            animation: fadeIn 0.3s ease;
-        }
-
-        .detail-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 24px;
+            text-align: center;
             margin-bottom: 24px;
         }
 
-        .btn-back {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border: none;
-            background: none;
+        .pdf-info h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .pdf-info p {
             color: var(--gray-600);
             font-size: 14px;
+        }
+
+        .page-input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .page-input-group label {
             font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .page-input {
+            width: 100px;
+            padding: 8px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .page-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .page-range {
+            color: var(--gray-500);
+            font-size: 14px;
+        }
+
+        /* 영역 설정 */
+        .area-settings {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+
+        .area-settings h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .position-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .size-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .preset-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .btn-preset {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 12px;
             cursor: pointer;
             transition: var(--transition);
         }
 
-        .btn-back:hover {
-            color: var(--primary-color);
-        }
-
-        .page-info {
-            font-size: 14px;
-            color: var(--gray-500);
-            font-weight: 500;
-        }
-
-        .canvas-container {
-            position: relative;
-            background: var(--gray-100);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 600px;
-        }
-
-        #pageCanvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .selection-overlay {
-            position: absolute;
-            border: 2px solid var(--primary-color);
-            background: rgba(79, 70, 229, 0.1);
-            pointer-events: none;
-            transition: var(--transition);
-        }
-
-        .action-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
+        .btn-preset:hover {
+            background: var(--gray-50);
+            border-color: var(--primary-color);
         }
 
         /* 모달 */
@@ -607,17 +623,8 @@
                 display: none;
             }
             
-            .page-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 16px;
-            }
-            
             .workspace {
                 padding: 24px;
-            }
-            
-            .canvas-container {
-                min-height: 300px;
             }
             
             .completion-actions {
@@ -627,6 +634,10 @@
             
             .completion-actions button {
                 width: 100%;
+            }
+
+            .position-grid, .size-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -685,7 +696,7 @@
                     </div>
                     <div class="step" data-step="2">
                         <div class="step-number">2</div>
-                        <span>영역 지정</span>
+                        <span>영역 설정</span>
                     </div>
                     <div class="step" data-step="3">
                         <div class="step-number">3</div>
@@ -697,29 +708,61 @@
                     </div>
                 </div>
 
-                <!-- 페이지 썸네일 그리드 -->
-                <div class="page-grid" id="pageGrid"></div>
-
-                <!-- 페이지 상세 뷰 (초기 숨김) -->
-                <div class="page-detail" id="pageDetail" style="display: none;">
-                    <div class="detail-header">
-                        <button class="btn-back" onclick="backToGrid()">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            페이지 목록으로
-                        </button>
-                        <span class="page-info" id="pageInfo">1 / 1 페이지</span>
+                <!-- 페이지 선택기 -->
+                <div class="page-selector" id="pageSelector">
+                    <div class="pdf-info">
+                        <h3 id="pdfFileName">PDF 파일 정보</h3>
+                        <p id="pdfPageCount">총 페이지 수: -</p>
                     </div>
                     
-                    <div class="canvas-container">
-                        <canvas id="pageCanvas"></canvas>
-                        <div class="selection-overlay" id="selectionOverlay" style="display: none;"></div>
+                    <div class="page-input-group">
+                        <label for="pageNumber">페이지 번호:</label>
+                        <input type="number" id="pageNumber" class="page-input" min="1" value="1">
+                        <span class="page-range" id="pageRange">/ 1</span>
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-secondary" onclick="resetSelection()">영역 다시 선택</button>
-                        <button class="btn-primary" id="btnAddGif" onclick="proceedToGifUpload()" disabled>
+                        <button class="btn-primary" onclick="selectPage()">
+                            페이지 선택
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 영역 설정 -->
+                <div class="area-settings" id="areaSettings" style="display: none;">
+                    <h3>GIF를 삽입할 영역을 설정하세요</h3>
+                    
+                    <div class="position-grid">
+                        <div class="input-group">
+                            <label>X 위치 (mm)</label>
+                            <input type="number" id="posX" value="20" min="0">
+                        </div>
+                        <div class="input-group">
+                            <label>Y 위치 (mm)</label>
+                            <input type="number" id="posY" value="20" min="0">
+                        </div>
+                    </div>
+
+                    <div class="size-grid">
+                        <div class="input-group">
+                            <label>너비 (mm)</label>
+                            <input type="number" id="width" value="50" min="1">
+                        </div>
+                        <div class="input-group">
+                            <label>높이 (mm)</label>
+                            <input type="number" id="height" value="50" min="1">
+                        </div>
+                    </div>
+
+                    <div class="preset-buttons">
+                        <button class="btn-preset" onclick="setPreset('small')">작게 (30×30)</button>
+                        <button class="btn-preset" onclick="setPreset('medium')">중간 (50×50)</button>
+                        <button class="btn-preset" onclick="setPreset('large')">크게 (80×80)</button>
+                    </div>
+
+                    <div class="action-buttons" style="margin-top: 24px;">
+                        <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
+                        <button class="btn-primary" onclick="proceedToGifUpload()">
                             GIF 추가하기
                         </button>
                     </div>
@@ -800,8 +843,8 @@
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎯</div>
-                    <h3>위치 지정</h3>
-                    <p>GIF를 넣을 페이지와 영역을 선택하세요</p>
+                    <h3>위치 설정</h3>
+                    <p>GIF를 넣을 페이지와 위치를 설정하세요</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎬</div>
@@ -811,39 +854,31 @@
                 <div class="feature-card">
                     <div class="feature-icon">✨</div>
                     <h3>완성!</h3>
-                    <p>재생 버튼이 포함된 PDF를 다운로드하세요</p>
+                    <p>GIF가 삽입된 PDF를 다운로드하세요</p>
                 </div>
             </div>
         </section>
     </div>
 
-    <!-- 스크립트 로드 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- PDF-lib만 사용 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script>
-        // PDF.js 초기화
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
         // 전역 변수
-        let pdfDoc = null;
         let currentPdfFile = null;
-        let selectedPage = null;
-        let selectedArea = null;
+        let pdfPageCount = 0;
+        let selectedPage = 1;
+        let selectedArea = {
+            x: 20, y: 20, width: 50, height: 50
+        };
         let gifFrames = null;
-        let isSelecting = false;
-        let startX = 0;
-        let startY = 0;
 
         // DOM 요소
         const pdfInput = document.getElementById('pdfInput');
         const pdfUploadBox = document.getElementById('pdfUploadBox');
         const uploadSection = document.getElementById('uploadSection');
         const workspace = document.getElementById('workspace');
-        const pageGrid = document.getElementById('pageGrid');
-        const pageDetail = document.getElementById('pageDetail');
-        const pageCanvas = document.getElementById('pageCanvas');
-        const selectionOverlay = document.getElementById('selectionOverlay');
-        const btnAddGif = document.getElementById('btnAddGif');
+        const pageSelector = document.getElementById('pageSelector');
+        const areaSettings = document.getElementById('areaSettings');
         const gifInput = document.getElementById('gifInput');
         const gifModal = document.getElementById('gifModal');
         const gifPreview = document.getElementById('gifPreview');
@@ -925,23 +960,24 @@
             }
         }
 
-        // PDF 로드
+        // PDF 로드 (PDF-lib만 사용)
         async function loadPdf(file) {
-            showProcessing('PDF 로딩 중...', '페이지를 분석하고 있습니다');
+            showProcessing('PDF 분석 중...', 'PDF 정보를 읽고 있습니다');
             
             try {
-                // File 객체를 저장 (원본 유지)
                 currentPdfFile = file;
                 
-                // PDF.js용 별도 ArrayBuffer 생성
-                const pdfJsArrayBuffer = await file.arrayBuffer();
-                const loadingTask = pdfjsLib.getDocument(pdfJsArrayBuffer);
-                pdfDoc = await loadingTask.promise;
-                
-                // 페이지 썸네일 생성
-                await generateThumbnails();
+                // PDF-lib로 페이지 수만 확인
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                pdfPageCount = pdfDoc.getPageCount();
                 
                 // UI 업데이트
+                document.getElementById('pdfFileName').textContent = file.name;
+                document.getElementById('pdfPageCount').textContent = `총 페이지 수: ${pdfPageCount}`;
+                document.getElementById('pageNumber').max = pdfPageCount;
+                document.getElementById('pageRange').textContent = `/ ${pdfPageCount}`;
+                
                 uploadSection.style.display = 'none';
                 workspace.style.display = 'block';
                 
@@ -953,199 +989,52 @@
             }
         }
 
-        // 썸네일 생성
-        async function generateThumbnails() {
-            pageGrid.innerHTML = '';
-            
-            for (let i = 1; i <= pdfDoc.numPages; i++) {
-                const page = await pdfDoc.getPage(i);
-                const viewport = page.getViewport({ scale: 0.5 });
-                
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                
-                const renderContext = {
-                    canvasContext: context,
-                    viewport: viewport
-                };
-                
-                await page.render(renderContext).promise;
-                
-                // 썸네일 컨테이너 생성
-                const thumbnail = document.createElement('div');
-                thumbnail.className = 'page-thumbnail';
-                thumbnail.onclick = () => selectPage(i);
-                
-                thumbnail.appendChild(canvas);
-                
-                const pageNumber = document.createElement('div');
-                pageNumber.className = 'page-number';
-                pageNumber.textContent = `${i}페이지`;
-                thumbnail.appendChild(pageNumber);
-                
-                pageGrid.appendChild(thumbnail);
-            }
-        }
-
         // 페이지 선택
-        async function selectPage(pageNum) {
-            selectedPage = pageNum;
+        function selectPage() {
+            const pageNum = parseInt(document.getElementById('pageNumber').value);
             
-            // 단계 업데이트
+            if (pageNum < 1 || pageNum > pdfPageCount) {
+                alert(`1부터 ${pdfPageCount}까지의 페이지 번호를 입력하세요.`);
+                return;
+            }
+            
+            selectedPage = pageNum;
             updateStep(2);
             
-            // 페이지 상세 보기
-            pageGrid.style.display = 'none';
-            pageDetail.style.display = 'block';
-            
-            // 페이지 정보 업데이트
-            document.getElementById('pageInfo').textContent = `${pageNum} / ${pdfDoc.numPages} 페이지`;
-            
-            // 선택한 페이지 렌더링
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
-            
-            pageCanvas.width = viewport.width;
-            pageCanvas.height = viewport.height;
-            
-            const context = pageCanvas.getContext('2d');
-            const renderContext = {
-                canvasContext: context,
-                viewport: viewport
+            pageSelector.style.display = 'none';
+            areaSettings.style.display = 'block';
+        }
+
+        // 영역 설정 프리셋
+        function setPreset(size) {
+            const presets = {
+                small: { width: 30, height: 30 },
+                medium: { width: 50, height: 50 },
+                large: { width: 80, height: 80 }
             };
             
-            await page.render(renderContext).promise;
-            
-            // 마우스 및 터치 이벤트 설정
-            setupSelectionEvents();
+            const preset = presets[size];
+            document.getElementById('width').value = preset.width;
+            document.getElementById('height').value = preset.height;
         }
 
-        // 영역 선택 이벤트 설정
-        function setupSelectionEvents() {
-            // 이전 이벤트 리스너 제거
-            pageCanvas.removeEventListener('mousedown', startSelection);
-            pageCanvas.removeEventListener('mousemove', updateSelection);
-            pageCanvas.removeEventListener('mouseup', endSelection);
-            pageCanvas.removeEventListener('touchstart', startTouchSelection);
-            pageCanvas.removeEventListener('touchmove', updateTouchSelection);
-            pageCanvas.removeEventListener('touchend', endTouchSelection);
-            
-            // 새 이벤트 리스너 추가
-            pageCanvas.addEventListener('mousedown', startSelection);
-            pageCanvas.addEventListener('mousemove', updateSelection);
-            pageCanvas.addEventListener('mouseup', endSelection);
-            
-            // 터치 이벤트
-            pageCanvas.addEventListener('touchstart', startTouchSelection, { passive: false });
-            pageCanvas.addEventListener('touchmove', updateTouchSelection, { passive: false });
-            pageCanvas.addEventListener('touchend', endTouchSelection, { passive: false });
-        }
-
-        // 터치 이벤트 핸들러
-        function startTouchSelection(e) {
-            e.preventDefault();
-            if (e.touches && e.touches[0]) {
-                const touch = e.touches[0];
-                startSelection({ clientX: touch.clientX, clientY: touch.clientY });
-            }
-        }
-
-        function updateTouchSelection(e) {
-            e.preventDefault();
-            if (e.touches && e.touches[0]) {
-                const touch = e.touches[0];
-                updateSelection({ clientX: touch.clientX, clientY: touch.clientY });
-            }
-        }
-
-        function endTouchSelection(e) {
-            e.preventDefault();
-            if (e.changedTouches && e.changedTouches[0]) {
-                const touch = e.changedTouches[0];
-                endSelection({ clientX: touch.clientX, clientY: touch.clientY });
-            }
-        }
-
-        // 선택 시작
-        function startSelection(e) {
-            isSelecting = true;
-            const rect = pageCanvas.getBoundingClientRect();
-            startX = e.clientX - rect.left;
-            startY = e.clientY - rect.top;
-            
-            selectionOverlay.style.display = 'block';
-            selectionOverlay.style.left = startX + 'px';
-            selectionOverlay.style.top = startY + 'px';
-            selectionOverlay.style.width = '0px';
-            selectionOverlay.style.height = '0px';
-        }
-
-        // 선택 업데이트
-        function updateSelection(e) {
-            if (!isSelecting) return;
-            
-            const rect = pageCanvas.getBoundingClientRect();
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
-            
-            const width = Math.abs(currentX - startX);
-            const height = Math.abs(currentY - startY);
-            const left = Math.min(startX, currentX);
-            const top = Math.min(startY, currentY);
-            
-            selectionOverlay.style.left = left + 'px';
-            selectionOverlay.style.top = top + 'px';
-            selectionOverlay.style.width = width + 'px';
-            selectionOverlay.style.height = height + 'px';
-        }
-
-        // 선택 종료
-        function endSelection(e) {
-            if (!isSelecting) return;
-            isSelecting = false;
-            
-            const rect = pageCanvas.getBoundingClientRect();
-            const endX = e.clientX - rect.left;
-            const endY = e.clientY - rect.top;
-            
-            const width = Math.abs(endX - startX);
-            const height = Math.abs(endY - startY);
-            
-            if (width > 10 && height > 10) {
-                selectedArea = {
-                    x: Math.min(startX, endX),
-                    y: Math.min(startY, endY),
-                    width: width,
-                    height: height
-                };
-                
-                btnAddGif.disabled = false;
-            } else {
-                // 드래그 영역이 너무 작으면 선택 취소
-                resetSelection();
-            }
-        }
-
-        // 선택 영역 초기화
-        function resetSelection() {
-            selectedArea = null;
-            selectionOverlay.style.display = 'none';
-            btnAddGif.disabled = true;
-        }
-
-        // 페이지 목록으로 돌아가기
-        function backToGrid() {
-            pageDetail.style.display = 'none';
-            pageGrid.style.display = 'grid';
-            resetSelection();
+        // 이전 단계로
+        function backToPageSelection() {
+            areaSettings.style.display = 'none';
+            pageSelector.style.display = 'block';
             updateStep(1);
         }
 
         // GIF 업로드 진행
         function proceedToGifUpload() {
-            if (!selectedArea) return;
+            // 영역 설정 값 저장
+            selectedArea = {
+                x: parseFloat(document.getElementById('posX').value),
+                y: parseFloat(document.getElementById('posY').value),
+                width: parseFloat(document.getElementById('width').value),
+                height: parseFloat(document.getElementById('height').value)
+            };
+            
             updateStep(3);
             gifModal.style.display = 'flex';
         }
@@ -1176,7 +1065,7 @@
                         gifPreview.innerHTML = `<img src="${e.target.result}" alt="GIF Preview">`;
                         btnProcessGif.disabled = false;
                         
-                        // GIF 이미지를 gifFrames에 저장 (단순화)
+                        // GIF 이미지를 Canvas로 변환
                         const img = new Image();
                         img.onload = function() {
                             const canvas = document.createElement('canvas');
@@ -1212,45 +1101,27 @@
             updateStep(4);
             
             try {
-                // PDF.js 인스턴스 완전히 정리
-                if (pdfDoc) {
-                    await pdfDoc.destroy();
-                    pdfDoc = null;
-                }
-                
-                // 잠시 대기 (메모리 정리 시간)
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // FileReader를 사용해서 완전히 새로운 방식으로 읽기
-                const pdfLibArrayBuffer = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsArrayBuffer(currentPdfFile);
-                });
-                
-                const pdfLibDoc = await PDFLib.PDFDocument.load(pdfLibArrayBuffer);
-                const pages = pdfLibDoc.getPages();
+                // 새로운 ArrayBuffer로 PDF 로드
+                const arrayBuffer = await currentPdfFile.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const pages = pdfDoc.getPages();
                 const page = pages[selectedPage - 1];
                 
                 // 페이지 크기 가져오기
                 const { width: pageWidth, height: pageHeight } = page.getSize();
                 
-                // Canvas 크기와 PDF 페이지 크기 비율 계산
-                const scaleX = pageWidth / pageCanvas.width;
-                const scaleY = pageHeight / pageCanvas.height;
+                // mm를 PDF 포인트로 변환 (1mm = 2.834645669 points)
+                const mmToPoints = 2.834645669;
+                const pdfX = selectedArea.x * mmToPoints;
+                const pdfY = pageHeight - (selectedArea.y + selectedArea.height) * mmToPoints;
+                const pdfWidth = selectedArea.width * mmToPoints;
+                const pdfHeight = selectedArea.height * mmToPoints;
                 
-                // 선택 영역을 PDF 좌표로 변환
-                const pdfX = selectedArea.x * scaleX;
-                const pdfY = pageHeight - (selectedArea.y + selectedArea.height) * scaleY;
-                const pdfWidth = selectedArea.width * scaleX;
-                const pdfHeight = selectedArea.height * scaleY;
-                
-                // GIF 이미지를 PNG로 변환하여 삽입
+                // GIF를 PNG로 변환하여 삽입
                 const firstFrame = gifFrames[0];
                 const pngDataUrl = firstFrame.canvas.toDataURL('image/png');
                 const pngData = await fetch(pngDataUrl).then(res => res.arrayBuffer());
-                const pngImage = await pdfLibDoc.embedPng(pngData);
+                const pngImage = await pdfDoc.embedPng(pngData);
                 
                 // 이미지를 페이지에 그리기
                 page.drawImage(pngImage, {
@@ -1261,7 +1132,7 @@
                 });
                 
                 // PDF 저장
-                const pdfBytes = await pdfLibDoc.save();
+                const pdfBytes = await pdfDoc.save();
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                 const url = URL.createObjectURL(blob);
                 
@@ -1309,7 +1180,6 @@
 
         // 새로 시작
         function startOver() {
-            // Object URL 해제 (메모리 누수 방지)
             if (window.generatedPdfUrl) {
                 URL.revokeObjectURL(window.generatedPdfUrl);
             }
