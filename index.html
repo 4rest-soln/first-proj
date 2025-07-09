@@ -826,7 +826,7 @@
 
         // 전역 변수
         let pdfDoc = null;
-        let currentPdfFile = null; // File 객체를 직접 저장
+        let currentPdfFile = null;
         let selectedPage = null;
         let selectedArea = null;
         let gifFrames = null;
@@ -1212,7 +1212,7 @@
             updateStep(4);
             
             try {
-                // ✅ 핵심: PDF.js 인스턴스 완전히 정리
+                // PDF.js 인스턴스 완전히 정리
                 if (pdfDoc) {
                     await pdfDoc.destroy();
                     pdfDoc = null;
@@ -1221,7 +1221,7 @@
                 // 잠시 대기 (메모리 정리 시간)
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
-                // ✅ FileReader를 사용해서 완전히 새로운 방식으로 읽기
+                // FileReader를 사용해서 완전히 새로운 방식으로 읽기
                 const pdfLibArrayBuffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -1268,91 +1268,6 @@
                 // 다운로드 준비
                 window.generatedPdfUrl = url;
                 window.generatedPdfName = `gif_inserted_${Date.now()}.pdf`;
-                
-                hideProcessing();
-                showCompletion();
-                
-            } catch (error) {
-                console.error('PDF 생성 실패:', error);
-                alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
-                hideProcessing();
-            }
-        }map(frame => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = gif.lsd.width;
-                    canvas.height = gif.lsd.height;
-                    
-                    const ctx = canvas.getContext('2d');
-                    const imageData = ctx.createImageData(gif.lsd.width, gif.lsd.height);
-                    imageData.data.set(frame.patch);
-                    ctx.putImageData(imageData, 0, 0);
-                    
-                    return {
-                        canvas: canvas,
-                        delay: frame.delay || 100
-                    };
-                });
-                
-                console.log(`GIF 파싱 완료: ${gifFrames.length}개 프레임`);
-            } catch (error) {
-                console.error('GIF 파싱 실패:', error);
-                throw error;
-            }
-        }
-
-        // GIF 처리 및 PDF 생성
-        async function processGif() {
-            if (!gifFrames || !selectedArea || !currentPdfData) {
-                alert('필요한 데이터가 없습니다.');
-                return;
-            }
-            
-            closeGifModal();
-            showProcessing('GIF 삽입 중...', 'PDF를 생성하고 있습니다');
-            updateStep(4);
-            
-            try {
-                // PDF-lib로 PDF 로드 - 새로운 ArrayBuffer 사용
-                const pdfData = currentPdfData.slice(0);
-                const pdfLibDoc = await PDFLib.PDFDocument.load(pdfData);
-                const pages = pdfLibDoc.getPages();
-                const page = pages[selectedPage - 1];
-                
-                // 페이지 크기 가져오기
-                const { width: pageWidth, height: pageHeight } = page.getSize();
-                
-                // Canvas 크기와 PDF 페이지 크기 비율 계산
-                const scaleX = pageWidth / pageCanvas.width;
-                const scaleY = pageHeight / pageCanvas.height;
-                
-                // 선택 영역을 PDF 좌표로 변환
-                const pdfX = selectedArea.x * scaleX;
-                const pdfY = pageHeight - (selectedArea.y + selectedArea.height) * scaleY;
-                const pdfWidth = selectedArea.width * scaleX;
-                const pdfHeight = selectedArea.height * scaleY;
-                
-                // 첫 번째 프레임만 이미지로 삽입 (간단한 구현)
-                const firstFrame = gifFrames[0];
-                const pngDataUrl = firstFrame.canvas.toDataURL('image/png');
-                const pngData = await fetch(pngDataUrl).then(res => res.arrayBuffer());
-                const pngImage = await pdfLibDoc.embedPng(pngData);
-                
-                // 이미지를 페이지에 그리기
-                page.drawImage(pngImage, {
-                    x: pdfX,
-                    y: pdfY,
-                    width: pdfWidth,
-                    height: pdfHeight,
-                });
-                
-                // PDF 저장
-                const pdfBytes = await pdfLibDoc.save();
-                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                
-                // 다운로드 준비
-                window.generatedPdfUrl = url;
-                window.generatedPdfName = `animated_${Date.now()}.pdf`;
                 
                 hideProcessing();
                 showCompletion();
