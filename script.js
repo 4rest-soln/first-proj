@@ -1,5 +1,6 @@
 // 전역 변수
 let currentPdfFile = null;
+let pdfArrayBuffer = null; // PDF 파일의 ArrayBuffer를 저장할 전역 변수 추가
 let pdfPageCount = 0;
 let selectedPage = 1;
 let selectedArea = {
@@ -102,9 +103,12 @@ async function loadPdf(file) {
     try {
         currentPdfFile = file;
         
-        // PDF-lib로 페이지 수만 확인
+        // PDF를 ArrayBuffer로 읽어 전역 변수에 저장
         const arrayBuffer = await file.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        pdfArrayBuffer = arrayBuffer; // ArrayBuffer 저장
+        
+        // 저장된 ArrayBuffer의 복사본으로 페이지 수 확인
+        const pdfDoc = await PDFLib.PDFDocument.load(pdfArrayBuffer.slice(0));
         pdfPageCount = pdfDoc.getPageCount();
         
         // UI 업데이트
@@ -226,7 +230,7 @@ async function handleGifUpload(e) {
 
 // GIF 처리 및 PDF 생성
 async function processGif() {
-    if (!gifFrames || !selectedArea || !currentPdfFile) {
+    if (!gifFrames || !selectedArea || !pdfArrayBuffer) { // currentPdfFile 대신 pdfArrayBuffer 확인
         alert('필요한 데이터가 없습니다.');
         return;
     }
@@ -236,9 +240,8 @@ async function processGif() {
     updateStep(4);
     
     try {
-        // 새로운 ArrayBuffer로 PDF 로드
-        const arrayBuffer = await currentPdfFile.arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        // 저장해둔 ArrayBuffer의 복사본으로 PDF 로드 (원본 훼손 방지)
+        const pdfDoc = await PDFLib.PDFDocument.load(pdfArrayBuffer.slice(0));
         const pages = pdfDoc.getPages();
         const page = pages[selectedPage - 1];
         
