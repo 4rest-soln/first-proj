@@ -6,7 +6,611 @@
     <title>PDF GIF - PDF에 움직이는 이미지 넣기</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 기본 설정 */
+        :root {
+            --primary-color: #4F46E5;
+            --primary-hover: #4338CA;
+            --secondary-color: #6366F1;
+            --success-color: #10B981;
+            --danger-color: #EF4444;
+            --gray-50: #F9FAFB;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-400: #9CA3AF;
+            --gray-500: #6B7280;
+            --gray-600: #4B5563;
+            --gray-700: #374151;
+            --gray-800: #1F2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --transition: all 0.2s ease;
+            --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* 헤더 */
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .nav {
+            display: flex;
+            gap: 32px;
+        }
+
+        .nav a {
+            color: var(--gray-600);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav a:hover {
+            color: var(--primary-color);
+        }
+
+        /* 메인 섹션 */
+        .main {
+            padding: 60px 0;
+            min-height: calc(100vh - 80px);
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            color: var(--gray-900);
+        }
+
+        .hero .highlight {
+            color: var(--primary-color);
+            position: relative;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: var(--gray-600);
+            font-weight: 400;
+        }
+
+        /* 업로드 섹션 */
+        .upload-section {
+            margin-bottom: 60px;
+        }
+
+        .upload-box {
+            background: white;
+            border: 2px dashed var(--gray-300);
+            border-radius: 16px;
+            padding: 60px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .upload-box:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .upload-box.drag-over {
+            border-color: var(--primary-color);
+            background-color: var(--gray-50);
+        }
+
+        .upload-content h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 20px 0 8px;
+            color: var(--gray-900);
+        }
+
+        .upload-content p {
+            color: var(--gray-500);
+            margin-bottom: 24px;
+        }
+
+        /* 버튼 스타일 */
+        .btn-primary, .btn-secondary {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
+        }
+
+        .btn-primary:disabled, .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 작업 영역 */
+        .workspace {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* 단계 표시 */
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-bottom: 40px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--gray-400);
+            font-weight: 500;
+            position: relative;
+        }
+
+        .step.active {
+            color: var(--primary-color);
+        }
+
+        .step.active .step-number {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gray-200);
+            color: var(--gray-500);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* 페이지 선택기 - 새로운 디자인 */
+        .page-selector {
+            margin-bottom: 40px;
+        }
+
+        .pdf-info {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .page-thumbnail {
+            border: 3px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: white;
+            position: relative;
+        }
+
+        .page-thumbnail:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .page-thumbnail.selected {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .page-thumbnail canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .page-number {
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* GIF 업로드 및 위치 설정 */
+        .gif-position-editor {
+            display: none;
+            margin-bottom: 24px;
+        }
+
+        .editor-container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .pdf-preview-container {
+            flex: 1;
+            position: relative;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .pdf-preview-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .gif-overlay {
+            position: absolute;
+            border: 2px solid var(--primary-color);
+            background: rgba(79, 70, 229, 0.1);
+            cursor: move;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            min-height: 50px;
+        }
+
+        .gif-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--primary-color);
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+
+        .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+
+        .controls-panel {
+            width: 300px;
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--gray-700);
+        }
+
+        .control-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .control-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .gif-upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .gif-upload-area:hover {
+            border-color: var(--primary-color);
+            background: white;
+        }
+
+        .gif-upload-area.has-gif {
+            border-color: var(--success-color);
+            background: var(--gray-50);
+        }
+
+        .gif-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin: 0 auto 8px;
+            display: block;
+        }
+
+        /* 모달 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            animation: slideUp 0.3s ease;
+        }
+
+        /* 처리 중 오버레이 */
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .processing-content {
+            text-align: center;
+            color: white;
+        }
+
+        .spinner {
+            width: 64px;
+            height: 64px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            margin: 0 auto 24px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* 완료 화면 */
+        .completion-screen {
+            text-align: center;
+            padding: 60px 0;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .completion-content {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .success-icon {
+            margin-bottom: 24px;
+        }
+
+        .completion-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        /* 기능 그리드 */
+        .how-it-works {
+            padding: 80px 0;
+            background: white;
+            margin-top: 80px;
+        }
+
+        .how-it-works h2 {
+            text-align: center;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 48px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 32px;
+        }
+
+        .feature-card {
+            text-align: center;
+            padding: 32px;
+            border-radius: 12px;
+            background: var(--gray-50);
+            transition: var(--transition);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            color: var(--gray-600);
+            font-size: 14px;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        /* 애니메이션 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 32px;
+            }
+            
+            .subtitle {
+                font-size: 16px;
+            }
+            
+            .steps {
+                gap: 24px;
+                flex-wrap: wrap;
+            }
+            
+            .step span {
+                display: none;
+            }
+            
+            .workspace {
+                padding: 24px;
+            }
+            
+            .editor-container {
+                flex-direction: column;
+            }
+            
+            .controls-panel {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -52,7 +656,7 @@
                 </div>
             </div>
 
-            <!-- 작업 영역 (초기 숨김) -->
+            <!-- 작업 영역 -->
             <div class="workspace" id="workspace" style="display: none;">
                 <!-- 단계 표시 -->
                 <div class="steps">
@@ -62,11 +666,11 @@
                     </div>
                     <div class="step" data-step="2">
                         <div class="step-number">2</div>
-                        <span>영역 설정</span>
+                        <span>GIF 업로드</span>
                     </div>
                     <div class="step" data-step="3">
                         <div class="step-number">3</div>
-                        <span>GIF 삽입</span>
+                        <span>위치 조정</span>
                     </div>
                     <div class="step" data-step="4">
                         <div class="step-number">4</div>
@@ -81,84 +685,62 @@
                         <p id="pdfPageCount">총 페이지 수: -</p>
                     </div>
                     
-                    <div class="page-input-group">
-                        <label for="pageNumber">페이지 번호:</label>
-                        <input type="number" id="pageNumber" class="page-input" min="1" value="1">
-                        <span class="page-range" id="pageRange">/ 1</span>
+                    <div class="pages-grid" id="pagesGrid">
+                        <!-- 페이지 썸네일들이 여기에 동적으로 생성됩니다 -->
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-primary" onclick="selectPage()">
-                            페이지 선택
+                        <button class="btn-primary" id="btnSelectPage" onclick="proceedToGifUpload()" disabled>
+                            선택한 페이지로 계속
                         </button>
                     </div>
                 </div>
 
-                <!-- 영역 설정 -->
-                <div class="area-settings" id="areaSettings" style="display: none;">
-                    <h3>GIF를 삽입할 영역을 설정하세요</h3>
-                    
-                    <div class="position-grid">
-                        <div class="input-group">
-                            <label>X 위치 (mm)</label>
-                            <input type="number" id="posX" value="20" min="0">
-                        </div>
-                        <div class="input-group">
-                            <label>Y 위치 (mm)</label>
-                            <input type="number" id="posY" value="20" min="0">
-                        </div>
-                    </div>
-
-                    <div class="size-grid">
-                        <div class="input-group">
-                            <label>너비 (mm)</label>
-                            <input type="number" id="width" value="50" min="1">
-                        </div>
-                        <div class="input-group">
-                            <label>높이 (mm)</label>
-                            <input type="number" id="height" value="50" min="1">
-                        </div>
-                    </div>
-
-                    <div class="preset-buttons">
-                        <button class="btn-preset" onclick="setPreset('small')">작게 (30×30)</button>
-                        <button class="btn-preset" onclick="setPreset('medium')">중간 (50×50)</button>
-                        <button class="btn-preset" onclick="setPreset('large')">크게 (80×80)</button>
-                    </div>
-
-                    <div class="action-buttons" style="margin-top: 24px;">
-                        <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
-                        <button class="btn-primary" onclick="proceedToGifUpload()">
-                            GIF 추가하기
-                        </button>
-                    </div>
-                </div>
-
-                <!-- GIF 업로드 모달 -->
-                <div class="modal" id="gifModal" style="display: none;">
-                    <div class="modal-content">
-                        <h3>GIF 파일 선택</h3>
-                        <p>선택한 영역에 삽입할 GIF 파일을 업로드하세요</p>
-                        
-                        <div class="gif-upload-box">
-                            <input type="file" id="gifInput" accept=".gif" hidden>
-                            <div class="upload-preview" id="gifPreview">
-                                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                    <rect x="8" y="8" width="48" height="48" rx="8" stroke="#E5E7EB" stroke-width="2"/>
-                                    <path d="M24 32L30 26L36 32M30 26V40" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                                <p>GIF 파일을 선택하거나 드래그하세요</p>
+                <!-- GIF 위치 편집기 -->
+                <div class="gif-position-editor" id="gifPositionEditor">
+                    <div class="editor-container">
+                        <div class="pdf-preview-container" id="pdfPreviewContainer">
+                            <canvas id="pdfPreviewCanvas" class="pdf-preview-canvas"></canvas>
+                            <div class="gif-overlay" id="gifOverlay" style="display: none;">
+                                <img id="gifPreviewImg" src="" alt="GIF">
+                                <div class="resize-handle nw"></div>
+                                <div class="resize-handle ne"></div>
+                                <div class="resize-handle sw"></div>
+                                <div class="resize-handle se"></div>
                             </div>
-                            <button class="btn-primary full-width" onclick="document.getElementById('gifInput').click()">
-                                GIF 선택하기
-                            </button>
                         </div>
 
-                        <div class="modal-actions">
-                            <button class="btn-secondary" onclick="closeGifModal()">취소</button>
-                            <button class="btn-primary" id="btnProcessGif" onclick="processGif()" disabled>
-                                GIF 삽입하기
-                            </button>
+                        <div class="controls-panel">
+                            <div class="control-group">
+                                <label>GIF 파일</label>
+                                <div class="gif-upload-area" id="gifUploadArea">
+                                    <input type="file" id="gifInput" accept=".gif" hidden>
+                                    <p>GIF 파일을 선택하세요</p>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>위치 (픽셀)</label>
+                                <div class="control-row">
+                                    <input type="number" class="control-input" id="posX" placeholder="X" min="0">
+                                    <input type="number" class="control-input" id="posY" placeholder="Y" min="0">
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>크기 (픽셀)</label>
+                                <div class="control-row">
+                                    <input type="number" class="control-input" id="gifWidth" placeholder="너비" min="10">
+                                    <input type="number" class="control-input" id="gifHeight" placeholder="높이" min="10">
+                                </div>
+                            </div>
+
+                            <div class="action-buttons" style="flex-direction: column;">
+                                <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
+                                <button class="btn-primary" id="btnGeneratePdf" onclick="generatePdf()" disabled>
+                                    PDF 생성하기
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -209,13 +791,13 @@
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎯</div>
-                    <h3>위치 설정</h3>
-                    <p>GIF를 넣을 페이지와 위치를 설정하세요</p>
+                    <h3>페이지 선택</h3>
+                    <p>GIF를 넣을 페이지를 시각적으로 선택하세요</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎬</div>
-                    <h3>GIF 삽입</h3>
-                    <p>원하는 GIF 파일을 업로드하세요</p>
+                    <h3>GIF 삽입 & 위치조정</h3>
+                    <p>GIF를 업로드하고 드래그로 위치를 조정하세요</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">✨</div>
@@ -226,8 +808,537 @@
         </section>
     </div>
 
-    <!-- PDF-lib만 사용 -->
+    <!-- PDF-lib 스크립트 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="script.js"></script>
+    <script>
+        // 전역 변수
+        let currentPdfFile = null;
+        let pdfDoc = null;
+        let pdfPages = [];
+        let selectedPageIndex = -1;
+        let gifFile = null;
+        let gifPosition = { x: 50, y: 50, width: 100, height: 100 };
+        let isDragging = false;
+        let isResizing = false;
+        let dragStart = { x: 0, y: 0 };
+        let resizeHandle = null;
+
+        // DOM 요소
+        const pdfInput = document.getElementById('pdfInput');
+        const pdfUploadBox = document.getElementById('pdfUploadBox');
+        const uploadSection = document.getElementById('uploadSection');
+        const workspace = document.getElementById('workspace');
+        const pageSelector = document.getElementById('pageSelector');
+        const pagesGrid = document.getElementById('pagesGrid');
+        const btnSelectPage = document.getElementById('btnSelectPage');
+        const gifPositionEditor = document.getElementById('gifPositionEditor');
+        const gifInput = document.getElementById('gifInput');
+        const gifUploadArea = document.getElementById('gifUploadArea');
+        const gifOverlay = document.getElementById('gifOverlay');
+        const gifPreviewImg = document.getElementById('gifPreviewImg');
+        const pdfPreviewCanvas = document.getElementById('pdfPreviewCanvas');
+        const pdfPreviewContainer = document.getElementById('pdfPreviewContainer');
+        const btnGeneratePdf = document.getElementById('btnGeneratePdf');
+        const processingOverlay = document.getElementById('processingOverlay');
+        const completionScreen = document.getElementById('completionScreen');
+
+        // 이벤트 리스너
+        pdfInput.addEventListener('change', handlePdfUpload);
+        gifInput.addEventListener('change', handleGifUpload);
+
+        // PDF 드래그 앤 드롭
+        pdfUploadBox.addEventListener('dragover', handleDragOver);
+        pdfUploadBox.addEventListener('dragleave', handleDragLeave);
+        pdfUploadBox.addEventListener('drop', handleDrop);
+
+        // GIF 업로드 영역 클릭
+        gifUploadArea.addEventListener('click', () => {
+            gifInput.click();
+        });
+
+        // GIF 오버레이 드래그 이벤트
+        gifOverlay.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // 컨트롤 입력 이벤트
+        document.getElementById('posX').addEventListener('input', updateGifPosition);
+        document.getElementById('posY').addEventListener('input', updateGifPosition);
+        document.getElementById('gifWidth').addEventListener('input', updateGifPosition);
+        document.getElementById('gifHeight').addEventListener('input', updateGifPosition);
+
+        // PDF 업로드 처리
+        async function handlePdfUpload(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                await loadPdf(file);
+            }
+        }
+
+        // 드래그 앤 드롭 핸들러
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                pdfInput.files = files;
+                loadPdf(files[0]);
+            }
+        }
+
+        // PDF 로드 및 썸네일 생성
+        async function loadPdf(file) {
+            showProcessing('PDF 분석 중...', 'PDF 정보를 읽고 있습니다');
+            
+            try {
+                currentPdfFile = file;
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                pdfPages = pdfDoc.getPages();
+                
+                // UI 업데이트
+                document.getElementById('pdfFileName').textContent = file.name;
+                document.getElementById('pdfPageCount').textContent = `총 페이지 수: ${pdfPages.length}`;
+                
+                // 페이지 썸네일 생성
+                await generatePageThumbnails();
+                
+                uploadSection.style.display = 'none';
+                workspace.style.display = 'block';
+                
+                hideProcessing();
+            } catch (error) {
+                console.error('PDF 로드 실패:', error);
+                alert('PDF 파일을 읽을 수 없습니다.');
+                hideProcessing();
+            }
+        }
+
+        // 페이지 썸네일 생성
+        async function generatePageThumbnails() {
+            pagesGrid.innerHTML = '';
+            
+            for (let i = 0; i < pdfPages.length; i++) {
+                const page = pdfPages[i];
+                const { width, height } = page.getSize();
+                
+                // 썸네일용 캔버스 생성
+                const canvas = document.createElement('canvas');
+                const scale = 200 / Math.max(width, height); // 썸네일 크기 조정
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 간단한 페이지 표현 (실제 렌더링 대신)
+                ctx.fillStyle = '#f3f4f6';
+                ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+                ctx.strokeStyle = '#d1d5db';
+                ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                
+                // 페이지 번호 표시
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Page ${i + 1}`, canvas.width / 2, canvas.height / 2);
+                
+                // 썸네일 요소 생성
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'page-thumbnail';
+                thumbnail.dataset.pageIndex = i;
+                thumbnail.innerHTML = `
+                    ${canvas.outerHTML}
+                    <div class="page-number">페이지 ${i + 1}</div>
+                `;
+                
+                thumbnail.addEventListener('click', () => selectPage(i));
+                pagesGrid.appendChild(thumbnail);
+            }
+        }
+
+        // 페이지 선택
+        function selectPage(pageIndex) {
+            // 이전 선택 해제
+            document.querySelectorAll('.page-thumbnail').forEach(thumb => {
+                thumb.classList.remove('selected');
+            });
+            
+            // 새 선택
+            const selectedThumbnail = document.querySelector(`[data-page-index="${pageIndex}"]`);
+            selectedThumbnail.classList.add('selected');
+            
+            selectedPageIndex = pageIndex;
+            btnSelectPage.disabled = false;
+        }
+
+        // GIF 업로드로 진행
+        function proceedToGifUpload() {
+            if (selectedPageIndex === -1) {
+                alert('페이지를 선택해주세요.');
+                return;
+            }
+            
+            updateStep(2);
+            pageSelector.style.display = 'none';
+            gifPositionEditor.style.display = 'block';
+            
+            // 선택된 페이지 미리보기 생성
+            renderPagePreview();
+        }
+
+        // 페이지 미리보기 렌더링
+        async function renderPagePreview() {
+            const page = pdfPages[selectedPageIndex];
+            const { width, height } = page.getSize();
+            
+            // 캔버스 크기 설정
+            const containerWidth = pdfPreviewContainer.clientWidth - 4; // 보더 고려
+            const scale = containerWidth / width;
+            
+            pdfPreviewCanvas.width = width * scale;
+            pdfPreviewCanvas.height = height * scale;
+            
+            const ctx = pdfPreviewCanvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, pdfPreviewCanvas.width, pdfPreviewCanvas.height);
+            
+            // 간단한 페이지 표현
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.strokeRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
+            
+            // 텍스트 라인 표시
+            ctx.strokeStyle = '#d1d5db';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 10; i++) {
+                const y = 60 + i * 30;
+                if (y < pdfPreviewCanvas.height - 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(40, y);
+                    ctx.lineTo(pdfPreviewCanvas.width - 40, y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // GIF 업로드 처리
+        function handleGifUpload(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'image/gif') {
+                gifFile = file;
+                
+                // 미리보기 생성
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    gifPreviewImg.src = e.target.result;
+                    gifUploadArea.innerHTML = `
+                        <img src="${e.target.result}" class="gif-preview" alt="GIF Preview">
+                        <p>GIF 업로드됨</p>
+                    `;
+                    gifUploadArea.classList.add('has-gif');
+                    
+                    // GIF 오버레이 표시
+                    showGifOverlay();
+                    updateStep(3);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // GIF 오버레이 표시
+        function showGifOverlay() {
+            // 기본 위치 설정 (캔버스 중앙)
+            const canvasRect = pdfPreviewCanvas.getBoundingClientRect();
+            const containerRect = pdfPreviewContainer.getBoundingClientRect();
+            
+            gifPosition = {
+                x: (pdfPreviewCanvas.width - 100) / 2,
+                y: (pdfPreviewCanvas.height - 100) / 2,
+                width: 100,
+                height: 100
+            };
+            
+            updateGifOverlayPosition();
+            gifOverlay.style.display = 'block';
+            btnGeneratePdf.disabled = false;
+        }
+
+        // GIF 오버레이 위치 업데이트
+        function updateGifOverlayPosition() {
+            const canvasRect = pdfPreviewCanvas.getBoundingClientRect();
+            const containerRect = pdfPreviewContainer.getBoundingClientRect();
+            
+            const scaleX = pdfPreviewCanvas.width / canvasRect.width;
+            const scaleY = pdfPreviewCanvas.height / canvasRect.height;
+            
+            gifOverlay.style.left = (gifPosition.x / scaleX) + 'px';
+            gifOverlay.style.top = (gifPosition.y / scaleY) + 'px';
+            gifOverlay.style.width = (gifPosition.width / scaleX) + 'px';
+            gifOverlay.style.height = (gifPosition.height / scaleY) + 'px';
+            
+            // 컨트롤 패널 업데이트
+            document.getElementById('posX').value = Math.round(gifPosition.x);
+            document.getElementById('posY').value = Math.round(gifPosition.y);
+            document.getElementById('gifWidth').value = Math.round(gifPosition.width);
+            document.getElementById('gifHeight').value = Math.round(gifPosition.height);
+        }
+
+        // 컨트롤에서 GIF 위치 업데이트
+        function updateGifPosition() {
+            const x = parseFloat(document.getElementById('posX').value) || 0;
+            const y = parseFloat(document.getElementById('posY').value) || 0;
+            const width = parseFloat(document.getElementById('gifWidth').value) || 100;
+            const height = parseFloat(document.getElementById('gifHeight').value) || 100;
+            
+            gifPosition = { x, y, width, height };
+            updateGifOverlayPosition();
+        }
+
+        // 마우스 이벤트 처리
+        function handleMouseDown(e) {
+            e.preventDefault();
+            
+            if (e.target.classList.contains('resize-handle')) {
+                isResizing = true;
+                resizeHandle = e.target.classList[1]; // nw, ne, sw, se
+            } else {
+                isDragging = true;
+            }
+            
+            const rect = pdfPreviewContainer.getBoundingClientRect();
+            dragStart = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function handleMouseMove(e) {
+            if (!isDragging && !isResizing) return;
+            
+            e.preventDefault();
+            const rect = pdfPreviewContainer.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            const canvasRect = pdfPreviewCanvas.getBoundingClientRect();
+            const containerRect = pdfPreviewContainer.getBoundingClientRect();
+            const scaleX = pdfPreviewCanvas.width / canvasRect.width;
+            const scaleY = pdfPreviewCanvas.height / canvasRect.height;
+            
+            if (isDragging) {
+                const deltaX = (currentX - dragStart.x) * scaleX;
+                const deltaY = (currentY - dragStart.y) * scaleY;
+                
+                gifPosition.x = Math.max(0, Math.min(pdfPreviewCanvas.width - gifPosition.width, gifPosition.x + deltaX));
+                gifPosition.y = Math.max(0, Math.min(pdfPreviewCanvas.height - gifPosition.height, gifPosition.y + deltaY));
+                
+                dragStart.x = currentX;
+                dragStart.y = currentY;
+            } else if (isResizing) {
+                const deltaX = (currentX - dragStart.x) * scaleX;
+                const deltaY = (currentY - dragStart.y) * scaleY;
+                
+                switch (resizeHandle) {
+                    case 'se':
+                        gifPosition.width = Math.max(10, gifPosition.width + deltaX);
+                        gifPosition.height = Math.max(10, gifPosition.height + deltaY);
+                        break;
+                    case 'sw':
+                        gifPosition.width = Math.max(10, gifPosition.width - deltaX);
+                        gifPosition.height = Math.max(10, gifPosition.height + deltaY);
+                        gifPosition.x = Math.max(0, gifPosition.x + deltaX);
+                        break;
+                    case 'ne':
+                        gifPosition.width = Math.max(10, gifPosition.width + deltaX);
+                        gifPosition.height = Math.max(10, gifPosition.height - deltaY);
+                        gifPosition.y = Math.max(0, gifPosition.y + deltaY);
+                        break;
+                    case 'nw':
+                        gifPosition.width = Math.max(10, gifPosition.width - deltaX);
+                        gifPosition.height = Math.max(10, gifPosition.height - deltaY);
+                        gifPosition.x = Math.max(0, gifPosition.x + deltaX);
+                        gifPosition.y = Math.max(0, gifPosition.y + deltaY);
+                        break;
+                }
+                
+                dragStart.x = currentX;
+                dragStart.y = currentY;
+            }
+            
+            updateGifOverlayPosition();
+        }
+
+        function handleMouseUp() {
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+        }
+
+        // PDF 생성
+        async function generatePdf() {
+            if (!gifFile || selectedPageIndex === -1) {
+                alert('필요한 데이터가 없습니다.');
+                return;
+            }
+            
+            showProcessing('GIF 삽입 중...', 'PDF를 생성하고 있습니다');
+            updateStep(4);
+            
+            try {
+                // 새로운 PDF 문서 생성 (원본 보호)
+                const arrayBuffer = await currentPdfFile.arrayBuffer();
+                const newPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const pages = newPdfDoc.getPages();
+                const targetPage = pages[selectedPageIndex];
+                
+                // 페이지 크기 가져오기
+                const { width: pageWidth, height: pageHeight } = targetPage.getSize();
+                
+                // 캔버스 좌표를 PDF 좌표로 변환
+                const scaleX = pageWidth / pdfPreviewCanvas.width;
+                const scaleY = pageHeight / pdfPreviewCanvas.height;
+                
+                const pdfX = gifPosition.x * scaleX;
+                const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY; // PDF는 하단이 원점
+                const pdfWidth = gifPosition.width * scaleX;
+                const pdfHeight = gifPosition.height * scaleY;
+                
+                // GIF를 PNG로 변환
+                const gifImageData = await convertGifToPng(gifFile);
+                const pngImage = await newPdfDoc.embedPng(gifImageData);
+                
+                // 이미지를 페이지에 그리기
+                targetPage.drawImage(pngImage, {
+                    x: pdfX,
+                    y: pdfY,
+                    width: pdfWidth,
+                    height: pdfHeight,
+                });
+                
+                // PDF 저장
+                const pdfBytes = await newPdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                // 다운로드 준비
+                window.generatedPdfUrl = url;
+                window.generatedPdfName = `gif_inserted_${Date.now()}.pdf`;
+                
+                hideProcessing();
+                showCompletion();
+                
+            } catch (error) {
+                console.error('PDF 생성 실패:', error);
+                alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
+                hideProcessing();
+            }
+        }
+
+        // GIF를 PNG로 변환
+        async function convertGifToPng(gifFile) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    canvas.toBlob(async (blob) => {
+                        const arrayBuffer = await blob.arrayBuffer();
+                        resolve(arrayBuffer);
+                    }, 'image/png');
+                };
+                img.onerror = reject;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(gifFile);
+            });
+        }
+
+        // 이전 단계로
+        function backToPageSelection() {
+            gifPositionEditor.style.display = 'none';
+            pageSelector.style.display = 'block';
+            updateStep(1);
+            
+            // 상태 초기화
+            gifFile = null;
+            gifOverlay.style.display = 'none';
+            gifUploadArea.innerHTML = '<p>GIF 파일을 선택하세요</p>';
+            gifUploadArea.classList.remove('has-gif');
+            btnGeneratePdf.disabled = true;
+        }
+
+        // 처리 중 표시
+        function showProcessing(title, message) {
+            document.getElementById('processingTitle').textContent = title;
+            document.getElementById('processingMessage').textContent = message;
+            processingOverlay.style.display = 'flex';
+        }
+
+        // 처리 중 숨기기
+        function hideProcessing() {
+            processingOverlay.style.display = 'none';
+        }
+
+        // 완료 화면 표시
+        function showCompletion() {
+            workspace.style.display = 'none';
+            completionScreen.style.display = 'block';
+        }
+
+        // PDF 다운로드
+        function downloadPDF() {
+            if (window.generatedPdfUrl && window.generatedPdfName) {
+                const a = document.createElement('a');
+                a.href = window.generatedPdfUrl;
+                a.download = window.generatedPdfName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+
+        // 새로 시작
+        function startOver() {
+            if (window.generatedPdfUrl) {
+                URL.revokeObjectURL(window.generatedPdfUrl);
+            }
+            location.reload();
+        }
+
+        // 단계 업데이트
+        function updateStep(step) {
+            document.querySelectorAll('.step').forEach(el => {
+                el.classList.remove('active');
+                if (parseInt(el.dataset.step) <= step) {
+                    el.classList.add('active');
+                }
+            });
+        }
+    </script>
 </body>
 </html>
