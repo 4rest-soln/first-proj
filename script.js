@@ -550,12 +550,8 @@ async function generatePdf() {
         console.log('생성된 PDF URL:', window.generatedPdfUrl);
         console.log('파일명:', window.generatedPdfName);
         
-        hideProcessing();
-        
-        // 잠시 대기 후 완료 화면 표시
-        setTimeout(() => {
-            showCompletion();
-        }, 100);
+        // 완료 처리 (화면 표시 대신 자동 다운로드)
+        handleCompletion();
         
     } catch (error) {
         console.error('PDF 생성 실패:', error);
@@ -654,37 +650,43 @@ function hideProcessing() {
     processingOverlay.style.display = 'none';
 }
 
-// 완료 화면 표시
-function showCompletion() {
-    console.log('완료 화면 표시 시작');
+// 완료 처리 (간단한 버전)
+function handleCompletion() {
+    console.log('완료 처리 시작');
     
-    try {
-        // 작업 영역 숨기기
-        if (workspace) {
-            workspace.style.display = 'none';
-            console.log('작업 영역 숨김');
-        }
+    hideProcessing(); // 처리 중 화면 숨기기
+    
+    if (window.generatedPdfUrl && window.generatedPdfName) {
+        console.log('자동 다운로드 시작');
         
-        // 완료 화면 표시
-        if (completionScreen) {
-            completionScreen.style.display = 'block';
-            console.log('완료 화면 표시됨');
-        } else {
-            console.error('completionScreen 요소를 찾을 수 없음');
-        }
+        // 즉시 다운로드 시도
+        downloadPDF();
         
-        // 스크롤을 맨 위로
-        window.scrollTo(0, 0);
+        // 성공 알림과 옵션 제공
+        setTimeout(() => {
+            const userChoice = confirm(
+                `✅ PDF 생성 완료!\n\n` +
+                `파일명: ${window.generatedPdfName}\n\n` +
+                `다운로드가 시작되었습니다.\n` +
+                `다운로드되지 않았다면 "확인"을 클릭하세요.\n\n` +
+                `취소를 클릭하면 새 작업을 시작합니다.`
+            );
+            
+            if (userChoice) {
+                // 확인 클릭 시 다시 다운로드
+                downloadPDF();
+            } else {
+                // 취소 클릭 시 새로 시작
+                if (confirm('새로운 PDF로 작업을 시작하시겠습니까?')) {
+                    startOver();
+                }
+            }
+        }, 1000);
         
-    } catch (error) {
-        console.error('완료 화면 표시 중 오류:', error);
-        
-        // 대안: 직접 다운로드 시작
-        if (window.generatedPdfUrl && window.generatedPdfName) {
-            console.log('자동 다운로드 시작');
-            downloadPDF();
-            alert('PDF 생성이 완료되었습니다. 다운로드가 시작됩니다.');
-        }
+    } else {
+        console.error('생성된 PDF가 없습니다');
+        alert('❌ PDF 생성에 문제가 발생했습니다.\n다시 시도해주세요.');
+        updateStep(3); // 이전 단계로 돌아가기
     }
 }
 
