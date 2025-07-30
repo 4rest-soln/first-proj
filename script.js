@@ -1,162 +1,60 @@
-// PDF에 GIF 애니메이션 삽입 (향상된 JavaScript 기반)
+// PDF에 GIF 애니메이션 삽입 (안정화 버전)
 async function insertAnimatedGif(pdfDoc, targetPage, gifFrames, position) {
-    console.log('고급 애니메이션 GIF PDF 삽입 시작');
+    console.log('안정화된 애니메이션 GIF PDF 삽입 시작');
     
     try {
-        const form = pdfDoc.getForm();
+        // 첫 번째 프레임을 기본 이미지로 삽입
+        const firstFrame = gifFrames[0];
+        const pngImage = await pdfDoc.embedPng(firstFrame.data);
         
-        if (gifFrames.length === 1) {
-            // 단일 프레임인 경우 정적 이미지로 삽입
-            console.log('단일 프레임 정적 이미지 삽입');
-            const pngImage = await pdfDoc.embedPng(gifFrames[0].data);
-            targetPage.drawImage(pngImage, {
-                x: position.x,
-                y: position.y,
-                width: position.width,
-                height: position.height,
-            });
+        console.log('첫 번째 프레임 이미지 임베드 완료');
+        
+        // 이미지를 페이지에 그리기
+        targetPage.drawImage(pngImage, {
+            x: position.x,
+            y: position.y,
+            width: position.width,
+            height: position.height,
+        });
+        
+        console.log('이미지 그리기 완료');
+        
+        // 선택적으로 제어 버튼 추가 (실패해도 전체 프로세스는 계속)
+        try {
+            const form = pdfDoc.getForm();
             
-            // 재생 버튼 추가 (장식용)
-            try {
-                const playButton = form.createButton('gifPlay');
-                playButton.addToPage('▶️', targetPage, {
-                    x: position.x + position.width - 25,
-                    y: position.y + position.height - 25,
-                    width: 20,
-                    height: 20,
-                    fontSize: 12
-                });
-            } catch (e) {
-                console.log('재생 버튼 추가 실패:', e.message);
-            }
-            
-        } else if (gifFrames.length > 1) {
-            // 멀티 프레임인 경우 애니메이션 구현
-            console.log(`멀티 프레임 애니메이션 구현 (${gifFrames.length}개 프레임)`);
-            
-            // 모든 프레임을 PDF에 이미지로 임베드
-            const embeddedImages = [];
-            for (let i = 0; i < gifFrames.length; i++) {
-                const pngImage = await pdfDoc.embedPng(gifFrames[i].data);
-                embeddedImages.push(pngImage);
-            }
-            
-            // 첫 번째 프레임을 기본으로 표시
-            targetPage.drawImage(embeddedImages[0], {
-                x: position.x,
-                y: position.y,
-                width: position.width,
-                height: position.height,
-            });
-            
-            // 각 프레임에 대한 이미지 필드 생성 (숨김)
-            for (let i = 0; i < embeddedImages.length; i++) {
-                try {
-                    const frameButton = form.createButton(`gifFrame${i}`);
-                    frameButton.addToPage('', targetPage, {
-                        x: position.x,
-                        y: position.y,
-                        width: position.width,
-                        height: position.height,
-                    });
-                    
-                    // 이미지 설정
-                    frameButton.setImage(embeddedImages[i]);
-                    
-                    // 처음에는 첫 번째 프레임 외에는 숨김
-                    if (i > 0) {
-                        // 숨김 처리는 PDF-lib에서 제한적으로 지원됨
-                    }
-                } catch (e) {
-                    console.log(`프레임 ${i} 생성 실패:`, e.message);
-                }
-            }
-            
-            // 애니메이션 제어 버튼들
-            try {
-                // 재생 버튼
-                const playButton = form.createButton('gifPlayBtn');
-                playButton.addToPage('▶️', targetPage, {
+            if (gifFrames.length > 1) {
+                console.log(`다중 프레임 GIF (${gifFrames.length}개 프레임) - 제어 정보 추가`);
+                
+                // 텍스트로 정보 표시 (버튼 대신)
+                targetPage.drawText(`GIF: ${gifFrames.length} frames`, {
                     x: position.x,
-                    y: position.y - 30,
-                    width: 25,
-                    height: 20,
-                    fontSize: 12
+                    y: position.y - 15,
+                    size: 8,
+                    color: { r: 0.5, g: 0.5, b: 0.5 }
                 });
                 
-                // 정지 버튼  
-                const stopButton = form.createButton('gifStopBtn');
-                stopButton.addToPage('⏹️', targetPage, {
-                    x: position.x + 30,
-                    y: position.y - 30,
-                    width: 25,
-                    height: 20,
-                    fontSize: 12
-                });
+            } else {
+                console.log('단일 프레임 GIF - 정적 이미지로 처리');
                 
-                console.log('애니메이션 제어 버튼 추가 완료');
-            } catch (e) {
-                console.log('제어 버튼 추가 실패:', e.message);
+                // 정적 이미지 표시
+                targetPage.drawText('Static GIF', {
+                    x: position.x,
+                    y: position.y - 15,
+                    size: 8,
+                    color: { r: 0.5, g: 0.5, b: 0.5 }
+                });
             }
             
-            // PDF에 JavaScript 코드 추가 시도 (제한적 지원)
-            try {
-                // Document-level JavaScript (일부 PDF 뷰어에서만 지원)
-                const jsCode = `
-                    var currentFrame = 0;
-                    var totalFrames = ${gifFrames.length};
-                    var animationTimer = null;
-                    var frameDelay = ${gifFrames[0].delay || 500};
-                    
-                    function startAnimation() {
-                        if (animationTimer) {
-                            clearInterval(animationTimer);
-                        }
-                        
-                        animationTimer = setInterval(function() {
-                            // 모든 프레임 숨기기
-                            for (var i = 0; i < totalFrames; i++) {
-                                try {
-                                    var field = this.getField('gifFrame' + i);
-                                    if (field) {
-                                        field.display = display.hidden;
-                                    }
-                                } catch(e) {}
-                            }
-                            
-                            // 현재 프레임 표시
-                            try {
-                                var currentField = this.getField('gifFrame' + currentFrame);
-                                if (currentField) {
-                                    currentField.display = display.visible;
-                                }
-                            } catch(e) {}
-                            
-                            currentFrame = (currentFrame + 1) % totalFrames;
-                        }, frameDelay);
-                    }
-                    
-                    function stopAnimation() {
-                        if (animationTimer) {
-                            clearInterval(animationTimer);
-                            animationTimer = null;
-                        }
-                    }
-                `;
-                
-                // PDF에 JavaScript 추가 (실험적)
-                console.log('PDF JavaScript 코드 준비 완료');
-                
-            } catch (jsError) {
-                console.log('JavaScript 코드 추가 실패:', jsError.message);
-            }
+        } catch (controlError) {
+            console.log('제어 요소 추가 실패 (무시하고 계속):', controlError.message);
         }
         
-        console.log('애니메이션 GIF 삽입 완료');
+        console.log('GIF 삽입 완료');
         return true;
         
     } catch (error) {
-        console.error('애니메이션 GIF 삽입 실패:', error);
+        console.error('GIF 삽입 실패:', error);
         throw error;
     }
 }// PDF에 GIF 애니메이션 삽입 (JavaScript 기반)
