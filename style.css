@@ -242,7 +242,7 @@ body {
     font-size: 14px;
 }
 
-/* 페이지 선택기 - 새로운 디자인 */
+/* 페이지 선택기 */
 .page-selector {
     margin-bottom: 40px;
 }
@@ -296,7 +296,7 @@ body {
     font-size: 14px;
 }
 
-/* GIF 업로드 및 위치 설정 */
+/* GIF 위치 편집기 */
 .gif-position-editor {
     display: none;
     margin-bottom: 24px;
@@ -316,7 +316,7 @@ body {
     overflow: hidden;
     background: white;
     max-width: 100%;
-    max-height: 600px; /* 최대 높이 제한 */
+    max-height: 600px;
 }
 
 .pdf-preview-canvas {
@@ -423,6 +423,13 @@ body {
     display: block;
 }
 
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+}
+
 /* 처리 중 오버레이 */
 .processing-overlay {
     position: fixed;
@@ -523,11 +530,159 @@ body {
     font-size: 14px;
 }
 
-.action-buttons {
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 32px;
+    }
+    
+    .subtitle {
+        font-size: 16px;
+    }
+    
+    .steps {
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    
+    .step span {
+        display: none;
+    }
+    
+    .workspace {
+        padding: 24px;
+    }
+    
+    .editor-container {
+        flex-direction: column;
+    }
+    
+    .controls-panel {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .control-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .control-input {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .gif-upload-area {
+        padding: 15px;
+    }
+    
+    .pdf-preview-container {
+        max-width: 100%;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .controls-panel {
+        padding: 16px;
+    }
+    
+    .control-group {
+        margin-bottom: 16px;
+    }
+    
+    .control-input {
+        padding: 10px 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}px;
+}
+
+.completion-actions {
     display: flex;
     justify-content: center;
     gap: 16px;
-    margin-top: 24px;
+}
+
+/* 기능 그리드 */
+.how-it-works {
+    padding: 80px 0;
+    background: white;
+    margin-top: 80px;
+}
+
+.how-it-works h2 {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 48px;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 32px;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 32px;
+    border-radius: 12px;
+    background: var(--gray-50);
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.feature-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.feature-card p {
+    color: var(--gray-600);
+    font-size: 14px;
 }
 
 /* 애니메이션 */
@@ -584,7 +739,6 @@ body {
         box-sizing: border-box;
     }
     
-    /* 컨트롤 입력 필드 반응형 개선 */
     .control-row {
         flex-direction: column;
         gap: 8px;
@@ -600,14 +754,12 @@ body {
         padding: 15px;
     }
     
-    /* PDF 미리보기 컨테이너 반응형 */
     .pdf-preview-container {
         max-width: 100%;
         margin-bottom: 20px;
     }
 }
 
-/* 추가: 더 작은 화면 대응 */
 @media (max-width: 480px) {
     .controls-panel {
         padding: 16px;
