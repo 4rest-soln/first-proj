@@ -30,6 +30,31 @@ const btnGeneratePdf = document.getElementById('btnGeneratePdf');
 const processingOverlay = document.getElementById('processingOverlay');
 const completionScreen = document.getElementById('completionScreen');
 
+// DOM 요소 확인
+function checkDOMElements() {
+    const elements = {
+        pdfInput, pdfUploadBox, uploadSection, workspace, pageSelector, 
+        pagesGrid, btnSelectPage, gifPositionEditor, gifInput, gifUploadArea,
+        gifOverlay, gifPreviewImg, pdfPreviewCanvas, pdfPreviewContainer,
+        btnGeneratePdf, processingOverlay, completionScreen
+    };
+    
+    console.log('DOM 요소 확인:');
+    for (const [name, element] of Object.entries(elements)) {
+        if (!element) {
+            console.error(`❌ ${name} 요소를 찾을 수 없음`);
+        } else {
+            console.log(`✅ ${name} 요소 확인됨`);
+        }
+    }
+}
+
+// 페이지 로드 시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM 로드 완료');
+    checkDOMElements();
+});
+
 // 이벤트 리스너
 pdfInput.addEventListener('change', handlePdfUpload);
 gifInput.addEventListener('change', handleGifUpload);
@@ -522,9 +547,15 @@ async function generatePdf() {
         window.generatedPdfName = `gif_inserted_${Date.now()}.pdf`;
         
         console.log('PDF 생성 완료');
+        console.log('생성된 PDF URL:', window.generatedPdfUrl);
+        console.log('파일명:', window.generatedPdfName);
         
         hideProcessing();
-        showCompletion();
+        
+        // 잠시 대기 후 완료 화면 표시
+        setTimeout(() => {
+            showCompletion();
+        }, 100);
         
     } catch (error) {
         console.error('PDF 생성 실패:', error);
@@ -625,19 +656,71 @@ function hideProcessing() {
 
 // 완료 화면 표시
 function showCompletion() {
-    workspace.style.display = 'none';
-    completionScreen.style.display = 'block';
+    console.log('완료 화면 표시 시작');
+    
+    try {
+        // 작업 영역 숨기기
+        if (workspace) {
+            workspace.style.display = 'none';
+            console.log('작업 영역 숨김');
+        }
+        
+        // 완료 화면 표시
+        if (completionScreen) {
+            completionScreen.style.display = 'block';
+            console.log('완료 화면 표시됨');
+        } else {
+            console.error('completionScreen 요소를 찾을 수 없음');
+        }
+        
+        // 스크롤을 맨 위로
+        window.scrollTo(0, 0);
+        
+    } catch (error) {
+        console.error('완료 화면 표시 중 오류:', error);
+        
+        // 대안: 직접 다운로드 시작
+        if (window.generatedPdfUrl && window.generatedPdfName) {
+            console.log('자동 다운로드 시작');
+            downloadPDF();
+            alert('PDF 생성이 완료되었습니다. 다운로드가 시작됩니다.');
+        }
+    }
 }
 
 // PDF 다운로드
 function downloadPDF() {
+    console.log('PDF 다운로드 시작');
+    
     if (window.generatedPdfUrl && window.generatedPdfName) {
-        const a = document.createElement('a');
-        a.href = window.generatedPdfUrl;
-        a.download = window.generatedPdfName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        try {
+            const a = document.createElement('a');
+            a.href = window.generatedPdfUrl;
+            a.download = window.generatedPdfName;
+            a.style.display = 'none';
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            console.log('PDF 다운로드 클릭 완료');
+        } catch (error) {
+            console.error('다운로드 중 오류:', error);
+            
+            // 대안: 새 창에서 PDF 열기
+            try {
+                window.open(window.generatedPdfUrl, '_blank');
+                console.log('새 창에서 PDF 열기 완료');
+            } catch (error2) {
+                console.error('새 창 열기도 실패:', error2);
+                alert('다운로드에 실패했습니다. 브라우저 설정을 확인해주세요.');
+            }
+        }
+    } else {
+        console.error('다운로드할 PDF가 없습니다');
+        console.log('generatedPdfUrl:', window.generatedPdfUrl);
+        console.log('generatedPdfName:', window.generatedPdfName);
+        alert('다운로드할 PDF가 없습니다.');
     }
 }
 
