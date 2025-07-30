@@ -1,6 +1,7 @@
 // 전역 변수
 let currentPdfFile = null;
-let pdfDoc = null;
+let pdfDoc = null; // PDF-lib 문서
+let pdfJsDoc = null; // PDF.js 문서  
 let pdfPages = [];
 let selectedPageIndex = -1;
 let gifFile = null;
@@ -94,8 +95,14 @@ async function loadPdf(file) {
     try {
         currentPdfFile = file;
         const arrayBuffer = await file.arrayBuffer();
+        
+        // PDF-lib으로 로드 (PDF 생성용)
         pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
         pdfPages = pdfDoc.getPages();
+        
+        // PDF.js로 로드 (렌더링용)  
+        const uint8Array = new Uint8Array(arrayBuffer);
+        pdfJsDoc = await pdfjsLib.getDocument(uint8Array).promise;
         
         // UI 업데이트
         document.getElementById('pdfFileName').textContent = file.name;
@@ -110,7 +117,7 @@ async function loadPdf(file) {
         hideProcessing();
     } catch (error) {
         console.error('PDF 로드 실패:', error);
-        alert('PDF 파일을 읽을 수 없습니다.');
+        alert('PDF 파일을 읽을 수 없습니다: ' + error.message);
         hideProcessing();
     }
 }
@@ -120,42 +127,55 @@ async function generatePageThumbnails() {
     pagesGrid.innerHTML = '';
     
     for (let i = 0; i < pdfPages.length; i++) {
-        const page = pdfPages[i];
-        const { width, height } = page.getSize();
-        
-        // 썸네일용 캔버스 생성
-        const canvas = document.createElement('canvas');
-        const scale = 200 / Math.max(width, height); // 썸네일 크기 조정
-        canvas.width = width * scale;
-        canvas.height = height * scale;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 간단한 페이지 표현 (실제 렌더링 대신)
-        ctx.fillStyle = '#f3f4f6';
-        ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
-        ctx.strokeStyle = '#d1d5db';
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-        
-        // 페이지 번호 표시
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Page ${i + 1}`, canvas.width / 2, canvas.height / 2);
-        
-        // 썸네일 요소 생성
-        const thumbnail = document.createElement('div');
-        thumbnail.className = 'page-thumbnail';
-        thumbnail.dataset.pageIndex = i;
-        thumbnail.innerHTML = `
-            ${canvas.outerHTML}
-            <div class="page-number">페이지 ${i + 1}</div>
-        `;
-        
-        thumbnail.addEventListener('click', () => selectPage(i));
-        pagesGrid.appendChild(thumbnail);
+        try {
+            // PDF.js로 페이지 렌더링
+            const page = await pdfJsDoc.getPage(i + 1); // PDF.js는 1부터 시작
+            const scale = 0.3; // 썸네일 크기
+            const viewport = page.getViewport({ scale });
+            
+            // 캔버스 생성
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // 페이지 렌더링
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            // 썸네일 요소 생성
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'page-thumbnail';
+            thumbnail.dataset.pageIndex = i;
+            thumbnail.innerHTML = `
+                ${canvas.outerHTML}
+                <div class="page-number">페이지 ${i + 1}</div>
+            `;
+            
+            thumbnail.addEventListener('click', () => selectPage(i));
+            pagesGrid.appendChild(thumbnail);
+            
+        } catch (error) {
+            console.error(`페이지 ${i + 1} 썸네일 생성 실패:`, error);
+            
+            // 실패 시 기본 썸네일 생성
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'page-thumbnail';
+            thumbnail.dataset.pageIndex = i;
+            thumbnail.innerHTML = `
+                <div style="width: 150px; height: 200px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                    <span style="color: #6b7280;">페이지 ${i + 1}</span>
+                </div>
+                <div class="page-number">페이지 ${i + 1}</div>
+            `;
+            
+            thumbnail.addEventListener('click', () => selectPage(i));
+            pagesGrid.appendChild(thumbnail);
+        }
     }
 }
 
@@ -191,37 +211,50 @@ function proceedToGifUpload() {
 
 // 페이지 미리보기 렌더링
 async function renderPagePreview() {
-    const page = pdfPages[selectedPageIndex];
-    const { width, height } = page.getSize();
-    
-    // 캔버스 크기 설정
-    const containerWidth = pdfPreviewContainer.clientWidth - 4; // 보더 고려
-    const scale = containerWidth / width;
-    
-    pdfPreviewCanvas.width = width * scale;
-    pdfPreviewCanvas.height = height * scale;
-    
-    const ctx = pdfPreviewCanvas.getContext('2d');
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, pdfPreviewCanvas.width, pdfPreviewCanvas.height);
-    
-    // 간단한 페이지 표현
-    ctx.fillStyle = '#f9fafb';
-    ctx.fillRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.strokeRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
-    
-    // 텍스트 라인 표시
-    ctx.strokeStyle = '#d1d5db';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 10; i++) {
-        const y = 60 + i * 30;
-        if (y < pdfPreviewCanvas.height - 40) {
-            ctx.beginPath();
-            ctx.moveTo(40, y);
-            ctx.lineTo(pdfPreviewCanvas.width - 40, y);
-            ctx.stroke();
-        }
+    try {
+        // PDF.js로 선택된 페이지 렌더링
+        const page = await pdfJsDoc.getPage(selectedPageIndex + 1); // PDF.js는 1부터 시작
+        
+        // 컨테이너 크기에 맞춰 스케일 계산
+        const containerWidth = pdfPreviewContainer.clientWidth - 4; // 보더 고려
+        const tempviewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / tempviewport.width;
+        const viewport = page.getViewport({ scale });
+        
+        // 캔버스 크기 설정
+        pdfPreviewCanvas.width = viewport.width;
+        pdfPreviewCanvas.height = viewport.height;
+        
+        // 페이지 렌더링
+        const renderContext = {
+            canvasContext: pdfPreviewCanvas.getContext('2d'),
+            viewport: viewport
+        };
+        
+        await page.render(renderContext).promise;
+        
+    } catch (error) {
+        console.error('페이지 미리보기 렌더링 실패:', error);
+        
+        // 실패 시 기본 페이지 표시
+        const ctx = pdfPreviewCanvas.getContext('2d');
+        const containerWidth = pdfPreviewContainer.clientWidth - 4;
+        pdfPreviewCanvas.width = containerWidth;
+        pdfPreviewCanvas.height = containerWidth * 1.4; // A4 비율 근사치
+        
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, pdfPreviewCanvas.width, pdfPreviewCanvas.height);
+        
+        ctx.fillStyle = '#f9fafb';
+        ctx.fillRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.strokeRect(20, 20, pdfPreviewCanvas.width - 40, pdfPreviewCanvas.height - 40);
+        
+        // 에러 메시지 표시
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`페이지 ${selectedPageIndex + 1}`, pdfPreviewCanvas.width / 2, pdfPreviewCanvas.height / 2);
     }
 }
 
@@ -395,6 +428,10 @@ async function generatePdf() {
         const pages = newPdfDoc.getPages();
         const targetPage = pages[selectedPageIndex];
         
+        if (!targetPage) {
+            throw new Error('선택된 페이지를 찾을 수 없습니다.');
+        }
+        
         // 페이지 크기 가져오기
         const { width: pageWidth, height: pageHeight } = targetPage.getSize();
         
@@ -407,8 +444,17 @@ async function generatePdf() {
         const pdfWidth = gifPosition.width * scaleX;
         const pdfHeight = gifPosition.height * scaleY;
         
+        console.log('PDF 좌표:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        console.log('페이지 크기:', { pageWidth, pageHeight });
+        console.log('캔버스 크기:', { width: pdfPreviewCanvas.width, height: pdfPreviewCanvas.height });
+        
         // GIF를 PNG로 변환
         const gifImageData = await convertGifToPng(gifFile);
+        
+        if (!gifImageData) {
+            throw new Error('GIF 이미지 변환에 실패했습니다.');
+        }
+        
         const pngImage = await newPdfDoc.embedPng(gifImageData);
         
         // 이미지를 페이지에 그리기
@@ -443,23 +489,36 @@ async function convertGifToPng(gifFile) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            
-            canvas.toBlob(async (blob) => {
-                const arrayBuffer = await blob.arrayBuffer();
-                resolve(arrayBuffer);
-            }, 'image/png');
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob(async (blob) => {
+                    if (blob) {
+                        const arrayBuffer = await blob.arrayBuffer();
+                        resolve(arrayBuffer);
+                    } else {
+                        reject(new Error('Canvas to Blob 변환 실패'));
+                    }
+                }, 'image/png');
+            } catch (error) {
+                reject(error);
+            }
         };
-        img.onerror = reject;
+        img.onerror = (error) => {
+            reject(new Error('이미지 로드 실패: ' + error));
+        };
         
         const reader = new FileReader();
         reader.onload = function(e) {
             img.src = e.target.result;
+        };
+        reader.onerror = (error) => {
+            reject(new Error('파일 읽기 실패: ' + error));
         };
         reader.readAsDataURL(gifFile);
     });
