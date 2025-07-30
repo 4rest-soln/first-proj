@@ -1,6 +1,6 @@
-// PDF에 GIF 애니메이션 삽입 (안정화 버전)
+// PDF에 GIF 애니메이션 삽입 (완전 안전 버전)
 async function insertAnimatedGif(pdfDoc, targetPage, gifFrames, position) {
-    console.log('안정화된 애니메이션 GIF PDF 삽입 시작');
+    console.log('안전한 GIF PDF 삽입 시작');
     
     try {
         // 첫 번째 프레임을 기본 이미지로 삽입
@@ -19,15 +19,13 @@ async function insertAnimatedGif(pdfDoc, targetPage, gifFrames, position) {
         
         console.log('이미지 그리기 완료');
         
-        // 선택적으로 제어 버튼 추가 (실패해도 전체 프로세스는 계속)
+        // 안전한 텍스트만 추가 (특수문자 완전 제거)
         try {
-            const form = pdfDoc.getForm();
-            
             if (gifFrames.length > 1) {
-                console.log(`다중 프레임 GIF (${gifFrames.length}개 프레임) - 제어 정보 추가`);
+                console.log(`다중 프레임 GIF (${gifFrames.length}개 프레임)`);
                 
-                // 텍스트로 정보 표시 (버튼 대신)
-                targetPage.drawText(`GIF: ${gifFrames.length} frames`, {
+                // 일반 ASCII 문자만 사용
+                targetPage.drawText(`GIF frames: ${gifFrames.length}`, {
                     x: position.x,
                     y: position.y - 15,
                     size: 8,
@@ -35,10 +33,9 @@ async function insertAnimatedGif(pdfDoc, targetPage, gifFrames, position) {
                 });
                 
             } else {
-                console.log('단일 프레임 GIF - 정적 이미지로 처리');
+                console.log('단일 프레임 GIF');
                 
-                // 정적 이미지 표시
-                targetPage.drawText('Static GIF', {
+                targetPage.drawText('Static image', {
                     x: position.x,
                     y: position.y - 15,
                     size: 8,
@@ -46,8 +43,8 @@ async function insertAnimatedGif(pdfDoc, targetPage, gifFrames, position) {
                 });
             }
             
-        } catch (controlError) {
-            console.log('제어 요소 추가 실패 (무시하고 계속):', controlError.message);
+        } catch (textError) {
+            console.log('텍스트 추가 실패 (무시):', textError.message);
         }
         
         console.log('GIF 삽입 완료');
@@ -462,13 +459,20 @@ function showGifOverlay() {
     btnGeneratePdf.disabled = false;
 }
 
-// GIF 오버레이 위치 업데이트
+// GIF 오버레이 위치 업데이트 (경계 제한 추가)
 function updateGifOverlayPosition() {
     const canvasRect = pdfPreviewCanvas.getBoundingClientRect();
     const containerRect = pdfPreviewContainer.getBoundingClientRect();
     
     const scaleX = pdfPreviewCanvas.width / canvasRect.width;
     const scaleY = pdfPreviewCanvas.height / canvasRect.height;
+    
+    // 경계 제한 적용
+    const maxX = pdfPreviewCanvas.width - gifPosition.width;
+    const maxY = pdfPreviewCanvas.height - gifPosition.height;
+    
+    gifPosition.x = Math.max(0, Math.min(maxX, gifPosition.x));
+    gifPosition.y = Math.max(0, Math.min(maxY, gifPosition.y));
     
     gifOverlay.style.left = (gifPosition.x / scaleX) + 'px';
     gifOverlay.style.top = (gifPosition.y / scaleY) + 'px';
@@ -482,14 +486,24 @@ function updateGifOverlayPosition() {
     document.getElementById('gifHeight').value = Math.round(gifPosition.height);
 }
 
-// 컨트롤에서 GIF 위치 업데이트
+// 컨트롤에서 GIF 위치 업데이트 (경계 검사 추가)
 function updateGifPosition() {
     const x = parseFloat(document.getElementById('posX').value) || 0;
     const y = parseFloat(document.getElementById('posY').value) || 0;
     const width = parseFloat(document.getElementById('gifWidth').value) || 100;
     const height = parseFloat(document.getElementById('gifHeight').value) || 100;
     
-    gifPosition = { x, y, width, height };
+    // 경계 제한
+    const maxX = pdfPreviewCanvas.width - width;
+    const maxY = pdfPreviewCanvas.height - height;
+    
+    gifPosition = { 
+        x: Math.max(0, Math.min(maxX, x)), 
+        y: Math.max(0, Math.min(maxY, y)), 
+        width: Math.max(10, Math.min(pdfPreviewCanvas.width, width)), 
+        height: Math.max(10, Math.min(pdfPreviewCanvas.height, height))
+    };
+    
     updateGifOverlayPosition();
 }
 
@@ -528,35 +542,57 @@ function handleMouseMove(e) {
         const deltaX = (currentX - dragStart.x) * scaleX;
         const deltaY = (currentY - dragStart.y) * scaleY;
         
-        gifPosition.x = Math.max(0, Math.min(pdfPreviewCanvas.width - gifPosition.width, gifPosition.x + deltaX));
-        gifPosition.y = Math.max(0, Math.min(pdfPreviewCanvas.height - gifPosition.height, gifPosition.y + deltaY));
+        // 경계 제한을 적용한 드래그
+        const newX = gifPosition.x + deltaX;
+        const newY = gifPosition.y + deltaY;
+        
+        gifPosition.x = Math.max(0, Math.min(pdfPreviewCanvas.width - gifPosition.width, newX));
+        gifPosition.y = Math.max(0, Math.min(pdfPreviewCanvas.height - gifPosition.height, newY));
         
         dragStart.x = currentX;
         dragStart.y = currentY;
+        
     } else if (isResizing) {
         const deltaX = (currentX - dragStart.x) * scaleX;
         const deltaY = (currentY - dragStart.y) * scaleY;
         
         switch (resizeHandle) {
             case 'se':
-                gifPosition.width = Math.max(10, gifPosition.width + deltaX);
-                gifPosition.height = Math.max(10, gifPosition.height + deltaY);
+                gifPosition.width = Math.max(10, Math.min(pdfPreviewCanvas.width - gifPosition.x, gifPosition.width + deltaX));
+                gifPosition.height = Math.max(10, Math.min(pdfPreviewCanvas.height - gifPosition.y, gifPosition.height + deltaY));
                 break;
             case 'sw':
-                gifPosition.width = Math.max(10, gifPosition.width - deltaX);
-                gifPosition.height = Math.max(10, gifPosition.height + deltaY);
-                gifPosition.x = Math.max(0, gifPosition.x + deltaX);
+                const newWidth = Math.max(10, gifPosition.width - deltaX);
+                const newX = Math.max(0, gifPosition.x + deltaX);
+                if (newX + newWidth <= pdfPreviewCanvas.width) {
+                    gifPosition.width = newWidth;
+                    gifPosition.x = newX;
+                }
+                gifPosition.height = Math.max(10, Math.min(pdfPreviewCanvas.height - gifPosition.y, gifPosition.height + deltaY));
                 break;
             case 'ne':
-                gifPosition.width = Math.max(10, gifPosition.width + deltaX);
-                gifPosition.height = Math.max(10, gifPosition.height - deltaY);
-                gifPosition.y = Math.max(0, gifPosition.y + deltaY);
+                gifPosition.width = Math.max(10, Math.min(pdfPreviewCanvas.width - gifPosition.x, gifPosition.width + deltaX));
+                const newHeight = Math.max(10, gifPosition.height - deltaY);
+                const newY = Math.max(0, gifPosition.y + deltaY);
+                if (newY + newHeight <= pdfPreviewCanvas.height) {
+                    gifPosition.height = newHeight;
+                    gifPosition.y = newY;
+                }
                 break;
             case 'nw':
-                gifPosition.width = Math.max(10, gifPosition.width - deltaX);
-                gifPosition.height = Math.max(10, gifPosition.height - deltaY);
-                gifPosition.x = Math.max(0, gifPosition.x + deltaX);
-                gifPosition.y = Math.max(0, gifPosition.y + deltaY);
+                const newWidthNW = Math.max(10, gifPosition.width - deltaX);
+                const newXNW = Math.max(0, gifPosition.x + deltaX);
+                const newHeightNW = Math.max(10, gifPosition.height - deltaY);
+                const newYNW = Math.max(0, gifPosition.y + deltaY);
+                
+                if (newXNW + newWidthNW <= pdfPreviewCanvas.width) {
+                    gifPosition.width = newWidthNW;
+                    gifPosition.x = newXNW;
+                }
+                if (newYNW + newHeightNW <= pdfPreviewCanvas.height) {
+                    gifPosition.height = newHeightNW;
+                    gifPosition.y = newYNW;
+                }
                 break;
         }
         
