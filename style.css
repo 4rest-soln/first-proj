@@ -580,5 +580,54 @@ body {
     
     .controls-panel {
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* 컨트롤 입력 필드 반응형 개선 */
+    .control-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .control-input {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .gif-upload-area {
+        padding: 15px;
+    }
+    
+    /* PDF 미리보기 컨테이너 반응형 */
+    .pdf-preview-container {
+        max-width: 100%;
+        margin-bottom: 20px;
+    }
+}
+
+/* 추가: 더 작은 화면 대응 */
+@media (max-width: 480px) {
+    .controls-panel {
+        padding: 16px;
+    }
+    
+    .control-group {
+        margin-bottom: 16px;
+    }
+    
+    .control-input {
+        padding: 10px 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+        margin-bottom: 8px;
     }
 }
