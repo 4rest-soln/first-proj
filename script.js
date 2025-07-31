@@ -436,35 +436,53 @@ let dragStart = { x: 0, y: 0 };
 let resizeHandle = null;
 let generatedPdfUrl = null;
 
-// DOM 요소들
-const elements = {
-    pdfInput: document.getElementById('pdfInput'),
-    pdfUploadBox: document.getElementById('pdfUploadBox'),
-    uploadSection: document.getElementById('uploadSection'),
-    workspace: document.getElementById('workspace'),
-    pageSelector: document.getElementById('pageSelector'),
-    pagesGrid: document.getElementById('pagesGrid'),
-    btnSelectPage: document.getElementById('btnSelectPage'),
-    gifPositionEditor: document.getElementById('gifPositionEditor'),
-    gifInput: document.getElementById('gifInput'),
-    gifUploadArea: document.getElementById('gifUploadArea'),
-    gifOverlay: document.getElementById('gifOverlay'),
-    gifPreviewElement: document.getElementById('gifPreviewElement'),
-    pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
-    pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
-    btnGeneratePdf: document.getElementById('btnGeneratePdf'),
-    processingOverlay: document.getElementById('processingOverlay'),
-    completionScreen: document.getElementById('completionScreen'),
-    progressFill: document.getElementById('progressFill'),
-    progressText: document.getElementById('progressText'),
-    autoPlay: document.getElementById('autoPlay'),
-    speedControl: document.getElementById('speedControl'),
-    speedDisplay: document.getElementById('speedDisplay')
-};
+// DOM 요소들 (함수로 래핑하여 안전하게 접근)
+function getElements() {
+    return {
+        pdfInput: document.getElementById('pdfInput'),
+        pdfUploadBox: document.getElementById('pdfUploadBox'),
+        uploadSection: document.getElementById('uploadSection'),
+        workspace: document.getElementById('workspace'),
+        pageSelector: document.getElementById('pageSelector'),
+        pagesGrid: document.getElementById('pagesGrid'),
+        btnSelectPage: document.getElementById('btnSelectPage'),
+        gifPositionEditor: document.getElementById('gifPositionEditor'),
+        gifInput: document.getElementById('gifInput'),
+        gifUploadArea: document.getElementById('gifUploadArea'),
+        gifOverlay: document.getElementById('gifOverlay'),
+        gifPreviewElement: document.getElementById('gifPreviewElement'),
+        pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
+        pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
+        btnGeneratePdf: document.getElementById('btnGeneratePdf'),
+        processingOverlay: document.getElementById('processingOverlay'),
+        completionScreen: document.getElementById('completionScreen'),
+        progressFill: document.getElementById('progressFill'),
+        progressText: document.getElementById('progressText'),
+        autoPlay: document.getElementById('autoPlay'),
+        speedControl: document.getElementById('speedControl'),
+        speedDisplay: document.getElementById('speedDisplay')
+    };
+}
+
+// elements 변수를 전역에서 초기화하지 말고 필요할 때마다 가져오기
+let elements = null;
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
     console.log('PDF GIF 애플리케이션 초기화 - 실제 PDF 생성 버전');
+    
+    // DOM 요소 초기화
+    elements = getElements();
+    
+    // 요소 존재 확인
+    if (!elements.pdfInput || !elements.pdfUploadBox) {
+        console.error('필수 DOM 요소를 찾을 수 없습니다');
+        alert('페이지 로딩에 문제가 있습니다. 새로고침해주세요.');
+        return;
+    }
+    
+    console.log('DOM 요소 확인 완료');
+    
     initializeEventListeners();
     checkBrowserSupport();
 });
@@ -495,9 +513,19 @@ function checkBrowserSupport() {
 
 // 이벤트 리스너 초기화
 function initializeEventListeners() {
+    console.log('이벤트 리스너 초기화 시작');
+    
     // 파일 업로드
     elements.pdfInput.addEventListener('change', handlePdfUpload);
     elements.gifInput.addEventListener('change', handleGifUpload);
+    
+    console.log('파일 업로드 이벤트 리스너 등록 완료');
+    
+    // 업로드 박스 클릭 시 파일 선택
+    elements.pdfUploadBox.addEventListener('click', () => {
+        console.log('업로드 박스 클릭됨');
+        elements.pdfInput.click();
+    });
 
     // PDF 드래그 앤 드롭
     elements.pdfUploadBox.addEventListener('dragover', handleDragOver);
@@ -510,18 +538,29 @@ function initializeEventListeners() {
     });
 
     // GIF 오버레이 드래그 이벤트
-    elements.gifOverlay.addEventListener('mousedown', handleMouseDown);
+    if (elements.gifOverlay) {
+        elements.gifOverlay.addEventListener('mousedown', handleMouseDown);
+    }
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
 
     // 컨트롤 입력 이벤트
-    document.getElementById('posX').addEventListener('input', updateGifPosition);
-    document.getElementById('posY').addEventListener('input', updateGifPosition);
-    document.getElementById('gifWidth').addEventListener('input', updateGifPosition);
-    document.getElementById('gifHeight').addEventListener('input', updateGifPosition);
+    const posX = document.getElementById('posX');
+    const posY = document.getElementById('posY');
+    const gifWidth = document.getElementById('gifWidth');
+    const gifHeight = document.getElementById('gifHeight');
+    
+    if (posX) posX.addEventListener('input', updateGifPosition);
+    if (posY) posY.addEventListener('input', updateGifPosition);
+    if (gifWidth) gifWidth.addEventListener('input', updateGifPosition);
+    if (gifHeight) gifHeight.addEventListener('input', updateGifPosition);
     
     // 애니메이션 설정
-    elements.speedControl.addEventListener('input', updateSpeedDisplay);
+    if (elements.speedControl) {
+        elements.speedControl.addEventListener('input', updateSpeedDisplay);
+    }
+    
+    console.log('모든 이벤트 리스너 등록 완료');
 }
 
 // 속도 표시 업데이트
