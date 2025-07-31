@@ -1,6 +1,430 @@
-// 전역 변수
+// 실제 PDF 생성 (핵심 기능)
+async function generateRealPdf() {
+    if (!gifFrames.length || selectedPageIndex === -1 || !originalPdfDoc) {
+        alert('필요한 데이터가 없습니다.');
+        return;
+    }
+    
+    showProcessing('실제 PDF 생성 중...', '움직이는 GIF가 포함된 완전한 PDF를 생성하고 있습니다');
+    updateProgress(5);
+    updateStep(4);
+    
+    try {
+        console.log('=== 실제 PDF 생성 시작 ===');
+        
+        // 1. 새로운 PDF 문서 생성
+        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const originalPages = originalPdfDoc.getPages();
+        
+        console.log(`총 ${originalPages.length}개 페이지 처리 시작`);
+        updateProgress(10);
+        
+        // 2. 모든 페이지를 새 문서로 복사
+        for (let i = 0; i < originalPages.length; i++) {
+            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+            const addedPage = newPdfDoc.addPage(copiedPage);
+            
+            // 선택된 페이지에 GIF 애니메이션 추가
+            if (i === selectedPageIndex) {
+                console.log(`페이지 ${i + 1}에 GIF 애니메이션 추가`);
+                await addAnimatedGifToPdfPage(newPdfDoc, addedPage, i);
+            }
+            
+            updateProgress(10 + (i + 1) / originalPages.length * 70);
+        }
+        
+        console.log('모든 페이지 복사 완료');
+        updateProgress(85);
+        
+        // 3. PDF 메타데이터 설정
+        newPdfDoc.setTitle('PDF with Animated GIF');
+        newPdfDoc.setCreator('PDF GIF Generator');
+        newPdfDoc.setProducer('PDF GIF Web App');
+        newPdfDoc.setCreationDate(new Date());
+        
+        // 4. PDF 저장
+        console.log('PDF 저장 시작');
+        const pdfBytes = await newPdfDoc.save();
+        updateProgress(95);
+        
+        // 5. 다운로드 URL 생성
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        if (generatedPdfUrl) {
+            URL.revokeObjectURL(generatedPdfUrl);
+        }
+        generatedPdfUrl = URL.createObjectURL(blob);
+        
+        console.log('PDF 생성 완료');
+        updateProgress(100);
+        
+        // 완료 화면 표시
+        setTimeout(() => {
+            hideProcessing();
+            showCompletionScreen();
+        }, 500);
+        
+    } catch (error) {
+        console.error('PDF 생성 실패:', error);
+        console.error('에러 스택:', error.stack);
+        alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
+        hideProcessing();
+    }
+}
+
+// PDF 페이지에 애니메이션 GIF 추가
+async function addAnimatedGifToPdfPage(pdfDoc, page, pageIndex) {
+    try {
+        console.log('애니메이션 GIF 삽입 시작');
+        
+        // 페이지 크기 가져오기
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        console.log('페이지 크기:', pageWidth, 'x', pageHeight);
+        
+        // 캔버스 좌표를 PDF 좌표로 변환
+        const previewCanvas = elements.pdfPreviewCanvas;
+        const scaleX = pageWidth / previewCanvas.width;
+        const scaleY = pageHeight / previewCanvas.height;
+        
+        // PDF 좌표계 (좌하단이 원점)로 변환
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        console.log('PDF 좌표:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        
+        // 모든 프레임을 PDF에 임베드
+        const embeddedFrames = [];
+        for (let i = 0; i < gifFrames.length; i++) {
+            const frame = gifFrames[i];
+            const embeddedImage = await pdfDoc.embedPng(frame.data);
+            embeddedFrames.push({
+                image: embeddedImage,
+                delay: frame.delay
+            });
+        }
+        
+        console.log(`${embeddedFrames.length}개 프레임 임베드 완료`);
+        
+        // JavaScript 액션을 사용한 애니메이션 구현
+        const autoPlay = elements.autoPlay.checked;
+        const frameDelay = parseInt(elements.speedControl.value);
+        
+        // 첫 번째 프레임을 기본으로 그리기
+        page.drawImage(embeddedFrames[0].image, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+        });
+        
+        // 여러 프레임이 있는 경우 애니메이션 JavaScript 추가
+        if (embeddedFrames.length > 1) {
+            // PDF 폼 생성
+            const form = pdfDoc.getForm();
+            
+            // 애니메이션을 위한 숨겨진 텍스트 필드들 생성 (각 프레임용)
+            const frameFields = [];
+            for (let i = 0; i < embeddedFrames.length; i++) {
+                const fieldName = `frame_${pageIndex}_${i}`;
+                const textField = form.createTextField(fieldName);
+                textField.addToPage(page, {
+                    x: pdfX,
+                    y: pdfY,
+                    width: pdfWidth,
+                    height: pdfHeight,
+                    backgroundColor: PDFLib.rgb(1, 1, 1),
+                    borderColor: PDFLib.rgb(0, 0, 0),
+                    borderWidth: 0,
+                });
+                
+                // 프레임 이미지를 배경으로 설정하려고 시도
+                try {
+                    textField.setImage(embeddedFrames[i].image);
+                } catch (e) {
+                    console.log(`Frame ${i} 이미지 설정 실패, 대안 방법 사용`);
+                }
+                
+                textField.setFontSize(0); // 텍스트 숨기기
+                frameFields.push(textField);
+                
+                // 첫 번째 프레임만 보이게 설정
+                if (i > 0) {
+                    // 숨김 처리 (완전히 지원되지 않을 수 있음)
+                    try {
+                        textField.setHidden(true);
+                    } catch (e) {
+                        console.log('필드 숨김 처리 실패');
+                    }
+                }
+            }
+            
+            // 애니메이션 제어를 위한 JavaScript 액션
+            const animationScript = `
+var currentFrame_${pageIndex} = 0;
+var totalFrames_${pageIndex} = ${embeddedFrames.length};
+var frameDelay_${pageIndex} = ${frameDelay};
+var autoPlay_${pageIndex} = ${autoPlay};
+var animationTimer_${pageIndex} = null;
+
+function nextFrame_${pageIndex}() {
+    // 현재 프레임 숨기기
+    try {
+        this.getField("frame_${pageIndex}_" + currentFrame_${pageIndex}).hidden = true;
+    } catch (e) {}
+    
+    // 다음 프레임으로 이동
+    currentFrame_${pageIndex} = (currentFrame_${pageIndex} + 1) % totalFrames_${pageIndex};
+    
+    // 새 프레임 보이기
+    try {
+        this.getField("frame_${pageIndex}_" + currentFrame_${pageIndex}).hidden = false;
+    } catch (e) {}
+    
+    // 자동 재생인 경우 다음 프레임 예약
+    if (autoPlay_${pageIndex}) {
+        animationTimer_${pageIndex} = app.setTimeOut("nextFrame_${pageIndex}()", frameDelay_${pageIndex});
+    }
+}
+
+function startAnimation_${pageIndex}() {
+    if (animationTimer_${pageIndex}) {
+        app.clearTimeOut(animationTimer_${pageIndex});
+    }
+    if (autoPlay_${pageIndex}) {
+        nextFrame_${pageIndex}();
+    }
+}
+
+// 페이지 열릴 때 자동 시작
+if (autoPlay_${pageIndex}) {
+    app.setTimeOut("startAnimation_${pageIndex}()", 100);
+}
+`;
+            
+            // 페이지에 JavaScript 액션 추가 (가능한 경우)
+            try {
+                // PDF 문서 레벨 JavaScript 추가
+                pdfDoc.addJavaScript('animation_' + pageIndex, animationScript);
+                console.log('JavaScript 애니메이션 스크립트 추가됨');
+            } catch (jsError) {
+                console.log('JavaScript 추가 실패, 대안 방법 사용:', jsError.message);
+                
+                // 대안: 모든 프레임을 겹쳐서 배치하고 투명도로 제어
+                for (let i = 1; i < embeddedFrames.length; i++) {
+                    page.drawImage(embeddedFrames[i].image, {
+                        x: pdfX + (i * 2), // 약간씩 위치 이동
+                        y: pdfY + (i * 2),
+                        width: pdfWidth - (i * 4),
+                        height: pdfHeight - (i * 4),
+                        opacity: 0.3 // 반투명으로 표시
+                    });
+                }
+            }
+            
+            // 애니메이션 시작 버튼 추가 (자동재생이 아닌 경우)
+            if (!autoPlay) {
+                const startButton = form.createButton('startBtn_' + pageIndex);
+                startButton.addToPage('▶ 재생', page, {
+                    x: pdfX,
+                    y: pdfY - 30,
+                    width: 60,
+                    height: 25,
+                    fontSize: 10,
+                    backgroundColor: PDFLib.rgb(0.31, 0.27, 0.9),
+                    borderColor: PDFLib.rgb(0, 0, 0),
+                    borderWidth: 1
+                });
+                
+                // 버튼 클릭 액션
+                try {
+                    startButton.setAction(
+                        PDFLib.PDFAction.createJavaScript(`startAnimation_${pageIndex}()`)
+                    );
+                } catch (actionError) {
+                    console.log('버튼 액션 설정 실패:', actionError.message);
+                }
+            }
+        }
+        
+        console.log('애니메이션 GIF 삽입 완료');
+        return true;
+        
+    } catch (error) {
+        console.error('애니메이션 GIF 삽입 실패:', error);
+        
+        // 실패 시 첫 번째 프레임만 정적으로 삽입
+        try {
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+            const pageSize = page.getSize();
+            const scaleX = pageSize.width / elements.pdfPreviewCanvas.width;
+            const scaleY = pageSize.height / elements.pdfPreviewCanvas.height;
+            
+            page.drawImage(embeddedImage, {
+                x: gifPosition.x * scaleX,
+                y: pageSize.height - (gifPosition.y + gifPosition.height) * scaleY,
+                width: gifPosition.width * scaleX,
+                height: gifPosition.height * scaleY,
+            });
+            
+            console.log('정적 이미지로 대체 삽입 완료');
+        } catch (fallbackError) {
+            console.error('대체 삽입도 실패:', fallbackError);
+        }
+    }
+}
+
+// 완료 화면 표시
+function showCompletionScreen() {
+    elements.workspace.style.display = 'none';
+    elements.completionScreen.style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
+// PDF 다운로드
+function downloadGeneratedPdf() {
+    if (!generatedPdfUrl) {
+        alert('생성된 PDF가 없습니다.');
+        return;
+    }
+    
+    try {
+        const fileName = `animated-pdf-${Date.now()}.pdf`;
+        const a = document.createElement('a');
+        a.href = generatedPdfUrl;
+        a.download = fileName;
+        a.style.display = 'none';
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        console.log('PDF 다운로드 시작:', fileName);
+    } catch (error) {
+        console.error('다운로드 실패:', error);
+        
+        // 대안: 새 창에서 PDF 열기
+        try {
+            window.open(generatedPdfUrl, '_blank');
+        } catch (error2) {
+            alert('다운로드에 실패했습니다. 브라우저 설정을 확인해주세요.');
+        }
+    }
+}
+
+// 이전 단계로
+function backToPageSelection() {
+    elements.gifPositionEditor.style.display = 'none';
+    elements.pageSelector.style.display = 'block';
+    updateStep(1);
+    
+    // 상태 초기화
+    gifFile = null;
+    gifFrames = [];
+    elements.gifOverlay.style.display = 'none';
+    elements.gifUploadArea.innerHTML = '<p>GIF 파일을 선택하세요</p>';
+    elements.gifUploadArea.classList.remove('has-gif');
+    elements.btnGeneratePdf.disabled = true;
+}
+
+// 처리 중 표시
+function showProcessing(title, message) {
+    document.getElementById('processingTitle').textContent = title;
+    document.getElementById('processingMessage').textContent = message;
+    elements.processingOverlay.style.display = 'flex';
+}
+
+// 처리 중 숨기기
+function hideProcessing() {
+    elements.processingOverlay.style.display = 'none';
+}
+
+// 진행률 업데이트
+function updateProgress(percent) {
+    elements.progressFill.style.width = percent + '%';
+    elements.progressText.textContent = Math.round(percent) + '%';
+}
+
+// 새로 시작
+function startOver() {
+    // URL 정리
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+        generatedPdfUrl = null;
+    }
+    
+    // 상태 초기화
+    currentPdfFile = null;
+    originalPdfDoc = null;
+    renderPdfDoc = null;
+    pdfPages = [];
+    selectedPageIndex = -1;
+    gifFile = null;
+    gifFrames = [];
+    
+    // 페이지 새로고침
+    location.reload();
+}
+
+// 단계 업데이트
+function updateStep(step) {
+    document.querySelectorAll('.step').forEach(el => {
+        el.classList.remove('active');
+        if (parseInt(el.dataset.step) <= step) {
+            el.classList.add('active');
+        }
+    });
+}
+
+// 전역 에러 핸들러
+window.addEventListener('error', function(e) {
+    console.error('전역 에러:', e.error);
+    if (elements.processingOverlay.style.display !== 'none') {
+        hideProcessing();
+        alert('예상치 못한 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+    }
+});
+
+// Promise rejection 핸들러
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('처리되지 않은 Promise 에러:', e.reason);
+    e.preventDefault();
+    
+    if (elements.processingOverlay.style.display !== 'none') {
+        hideProcessing();
+        alert('처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
+});
+
+// 페이지 언로드 시 정리
+window.addEventListener('beforeunload', function() {
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+});
+
+// 디버깅을 위한 정보 출력
+function debugInfo() {
+    console.log('=== PDF GIF 디버그 정보 ===');
+    console.log('PDF 로드됨:', !!originalPdfDoc);
+    console.log('선택된 페이지:', selectedPageIndex);
+    console.log('GIF 프레임 수:', gifFrames.length);
+    console.log('GIF 위치:', gifPosition);
+    console.log('생성된 PDF URL:', !!generatedPdfUrl);
+    console.log('브라우저 지원:');
+    console.log('- FileReader:', typeof FileReader !== 'undefined');
+    console.log('- Canvas:', typeof HTMLCanvasElement !== 'undefined');
+    console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
+    console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
+    console.log('- gifuct-js:', typeof gifuct !== 'undefined');
+    console.log('==========================');
+}
+
+// 전역 함수로 노출 (디버깅용)
+window.debugPdfGif = debugInfo; 전역 변수
 let currentPdfFile = null;
-let pdfDoc = null;
+let originalPdfDoc = null; // 원본 PDF (PDF-lib)
+let renderPdfDoc = null;   // 렌더링용 PDF (PDF.js)
 let pdfPages = [];
 let selectedPageIndex = -1;
 let gifFile = null;
@@ -10,7 +434,7 @@ let isDragging = false;
 let isResizing = false;
 let dragStart = { x: 0, y: 0 };
 let resizeHandle = null;
-let animationIntervals = [];
+let generatedPdfUrl = null;
 
 // DOM 요소들
 const elements = {
@@ -28,16 +452,19 @@ const elements = {
     gifPreviewElement: document.getElementById('gifPreviewElement'),
     pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
     pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
-    btnPreview: document.getElementById('btnPreview'),
+    btnGeneratePdf: document.getElementById('btnGeneratePdf'),
     processingOverlay: document.getElementById('processingOverlay'),
-    viewerSection: document.getElementById('viewerSection'),
-    viewerCanvas: document.getElementById('viewerCanvas'),
-    viewerContainer: document.getElementById('viewerContainer')
+    completionScreen: document.getElementById('completionScreen'),
+    progressFill: document.getElementById('progressFill'),
+    progressText: document.getElementById('progressText'),
+    autoPlay: document.getElementById('autoPlay'),
+    speedControl: document.getElementById('speedControl'),
+    speedDisplay: document.getElementById('speedDisplay')
 };
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('PDF GIF 애플리케이션 초기화');
+    console.log('PDF GIF 애플리케이션 초기화 - 실제 PDF 생성 버전');
     initializeEventListeners();
     checkBrowserSupport();
 });
@@ -48,12 +475,13 @@ function checkBrowserSupport() {
         fileReader: typeof FileReader !== 'undefined',
         canvas: typeof HTMLCanvasElement !== 'undefined',
         pdfjs: typeof pdfjsLib !== 'undefined',
+        pdflib: typeof PDFLib !== 'undefined',
         gifuct: typeof gifuct !== 'undefined'
     };
 
     console.log('브라우저 지원 상태:', features);
     
-    if (!features.fileReader || !features.canvas || !features.pdfjs) {
+    if (!features.fileReader || !features.canvas || !features.pdfjs || !features.pdflib) {
         alert('브라우저가 필요한 기능을 지원하지 않습니다. 최신 브라우저를 사용해주세요.');
         return false;
     }
@@ -91,6 +519,14 @@ function initializeEventListeners() {
     document.getElementById('posY').addEventListener('input', updateGifPosition);
     document.getElementById('gifWidth').addEventListener('input', updateGifPosition);
     document.getElementById('gifHeight').addEventListener('input', updateGifPosition);
+    
+    // 애니메이션 설정
+    elements.speedControl.addEventListener('input', updateSpeedDisplay);
+}
+
+// 속도 표시 업데이트
+function updateSpeedDisplay() {
+    elements.speedDisplay.textContent = elements.speedControl.value + 'ms';
 }
 
 // PDF 업로드 처리
@@ -133,24 +569,31 @@ function handleDrop(e) {
 // PDF 로드 및 썸네일 생성
 async function loadPdf(file) {
     showProcessing('PDF 분석 중...', 'PDF 정보를 읽고 있습니다');
+    updateProgress(10);
     
     try {
         currentPdfFile = file;
         const arrayBuffer = await file.arrayBuffer();
         
-        // PDF.js로 로드
+        // PDF-lib으로 로드 (편집용)
+        originalPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        console.log('PDF-lib 로드 성공');
+        updateProgress(30);
+        
+        // PDF.js로 로드 (렌더링용)
         const loadingTask = pdfjsLib.getDocument({
             data: new Uint8Array(arrayBuffer),
             verbosity: 0
         });
         
-        pdfDoc = await loadingTask.promise;
+        renderPdfDoc = await loadingTask.promise;
         pdfPages = [];
-        for (let i = 1; i <= pdfDoc.numPages; i++) {
-            pdfPages.push(await pdfDoc.getPage(i));
+        for (let i = 1; i <= renderPdfDoc.numPages; i++) {
+            pdfPages.push(await renderPdfDoc.getPage(i));
         }
         
-        console.log('PDF 로드 성공:', pdfPages.length, '페이지');
+        console.log('PDF.js 로드 성공:', pdfPages.length, '페이지');
+        updateProgress(60);
         
         // UI 업데이트
         document.getElementById('pdfFileName').textContent = file.name;
@@ -158,6 +601,7 @@ async function loadPdf(file) {
         
         // 페이지 썸네일 생성
         await generatePageThumbnails();
+        updateProgress(100);
         
         elements.uploadSection.style.display = 'none';
         elements.workspace.style.display = 'block';
@@ -314,10 +758,12 @@ async function handleGifUpload(e) {
     const file = e.target.files[0];
     if (file && file.type === 'image/gif') {
         showProcessing('GIF 처리 중...', 'GIF 프레임을 추출하고 있습니다');
+        updateProgress(10);
         
         try {
             gifFile = file;
             gifFrames = await extractGifFrames(file);
+            updateProgress(60);
             
             // 미리보기 생성
             const reader = new FileReader();
@@ -330,6 +776,7 @@ async function handleGifUpload(e) {
                 
                 showGifOverlay();
                 updateStep(3);
+                updateProgress(100);
                 hideProcessing();
             };
             reader.readAsDataURL(file);
@@ -360,7 +807,7 @@ async function extractGifFrames(gifFile) {
                 console.log(`GIF 파싱 성공: ${frames.length}개 프레임`);
                 
                 const frameData = [];
-                const maxFrames = Math.min(frames.length, 20); // 최대 20프레임
+                const maxFrames = Math.min(frames.length, 30); // 최대 30프레임
                 
                 for (let i = 0; i < maxFrames; i++) {
                     const frame = frames[i];
@@ -376,8 +823,9 @@ async function extractGifFrames(gifFile) {
                         frame.dims.height
                     );
                     
-                    // 배경 처리
+                    // 배경 처리 (투명도 지원)
                     if (i === 0 || frame.disposalType === 2) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.fillStyle = 'white';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                     }
@@ -390,12 +838,19 @@ async function extractGifFrames(gifFile) {
                     
                     ctx.drawImage(tempCanvas, frame.dims.left, frame.dims.top);
                     
-                    // 프레임을 데이터 URL로 변환
-                    const dataUrl = canvas.toDataURL('image/png');
-                    frameData.push({
-                        dataUrl: dataUrl,
-                        delay: frame.delay || 100
+                    // 프레임을 PNG ArrayBuffer로 변환 (PDF-lib 호환)
+                    const blob = await new Promise(resolve => {
+                        canvas.toBlob(resolve, 'image/png', 1.0);
                     });
+                    
+                    if (blob) {
+                        const frameArrayBuffer = await blob.arrayBuffer();
+                        frameData.push({
+                            data: frameArrayBuffer,
+                            dataUrl: canvas.toDataURL('image/png'),
+                            delay: frame.delay || 100
+                        });
+                    }
                 }
                 
                 if (frameData.length > 0) {
@@ -421,7 +876,7 @@ async function extractGifFrames(gifFile) {
 async function createFramesFromImage(file) {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = function() {
+        img.onload = async function() {
             const canvas = document.createElement('canvas');
             canvas.width = img.naturalWidth || img.width;
             canvas.height = img.naturalHeight || img.height;
@@ -431,18 +886,25 @@ async function createFramesFromImage(file) {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
             
-            const dataUrl = canvas.toDataURL('image/png');
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/png', 1.0);
+            });
             
-            // 단일 프레임을 여러 번 복사
-            const frames = [];
-            for (let i = 0; i < 1; i++) { // 정적 이미지이므로 1프레임만
-                frames.push({
+            if (blob) {
+                const arrayBuffer = await blob.arrayBuffer();
+                const dataUrl = canvas.toDataURL('image/png');
+                
+                // 단일 프레임 (정적 이미지)
+                const frames = [{
+                    data: arrayBuffer,
                     dataUrl: dataUrl,
                     delay: 1000
-                });
+                }];
+                
+                resolve(frames);
+            } else {
+                reject(new Error('Canvas to Blob 변환 실패'));
             }
-            
-            resolve(frames);
         };
         
         img.onerror = reject;
@@ -473,7 +935,7 @@ function showGifOverlay() {
     
     updateGifOverlayPosition();
     elements.gifOverlay.style.display = 'block';
-    elements.btnPreview.disabled = false;
+    elements.btnGeneratePdf.disabled = false;
 }
 
 // GIF 오버레이 위치 업데이트
@@ -594,466 +1056,4 @@ function handleMouseUp() {
     resizeHandle = null;
 }
 
-// 미리보기 표시
-function showPreview() {
-    if (!gifFrames.length || selectedPageIndex === -1) {
-        alert('필요한 데이터가 없습니다.');
-        return;
-    }
-    
-    updateStep(4);
-    elements.workspace.style.display = 'none';
-    elements.viewerSection.style.display = 'block';
-    
-    renderViewer();
-}
-
-// 뷰어 렌더링
-async function renderViewer() {
-    try {
-        const page = pdfPages[selectedPageIndex];
-        
-        // 뷰어 컨테이너 크기 계산
-        const containerWidth = elements.viewerContainer.clientWidth - 4;
-        const tempViewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(containerWidth / tempViewport.width, window.innerHeight * 0.7 / tempViewport.height);
-        const viewport = page.getViewport({ scale });
-        
-        // 캔버스 설정
-        elements.viewerCanvas.width = viewport.width;
-        elements.viewerCanvas.height = viewport.height;
-        elements.viewerCanvas.style.width = viewport.width + 'px';
-        elements.viewerCanvas.style.height = viewport.height + 'px';
-        
-        // 페이지 렌더링
-        const renderContext = {
-            canvasContext: elements.viewerCanvas.getContext('2d'),
-            viewport: viewport
-        };
-        
-        await page.render(renderContext).promise;
-        
-        // 애니메이션 오버레이 생성
-        createAnimatedOverlay(scale);
-        
-    } catch (error) {
-        console.error('뷰어 렌더링 실패:', error);
-        alert('미리보기 생성에 실패했습니다.');
-    }
-}
-
-// 애니메이션 오버레이 생성
-function createAnimatedOverlay(scale) {
-    // 기존 오버레이 제거
-    const existingOverlays = elements.viewerContainer.querySelectorAll('.animated-overlay');
-    existingOverlays.forEach(overlay => overlay.remove());
-    
-    // 애니메이션 인터벌 정리
-    animationIntervals.forEach(interval => clearInterval(interval));
-    animationIntervals = [];
-    
-    // 새 오버레이 생성
-    const overlay = document.createElement('div');
-    overlay.className = 'animated-overlay';
-    
-    // 위치 계산 (PDF 좌표계에서 화면 좌표계로 변환)
-    const scaleX = elements.viewerCanvas.width / elements.pdfPreviewCanvas.width;
-    const scaleY = elements.viewerCanvas.height / elements.pdfPreviewCanvas.height;
-    
-    const overlayX = gifPosition.x * scaleX;
-    const overlayY = gifPosition.y * scaleY;
-    const overlayWidth = gifPosition.width * scaleX;
-    const overlayHeight = gifPosition.height * scaleY;
-    
-    overlay.style.left = overlayX + 'px';
-    overlay.style.top = overlayY + 'px';
-    overlay.style.width = overlayWidth + 'px';
-    overlay.style.height = overlayHeight + 'px';
-    
-    // 이미지 엘리먼트 생성
-    const img = document.createElement('img');
-    img.style.width = '100%';
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-    
-    overlay.appendChild(img);
-    elements.viewerContainer.appendChild(overlay);
-    
-    // 애니메이션 시작
-    if (gifFrames.length > 1) {
-        let currentFrame = 0;
-        
-        function nextFrame() {
-            img.src = gifFrames[currentFrame].dataUrl;
-            currentFrame = (currentFrame + 1) % gifFrames.length;
-        }
-        
-        nextFrame(); // 첫 프레임 즉시 표시
-        
-        const interval = setInterval(nextFrame, gifFrames[0].delay || 500);
-        animationIntervals.push(interval);
-    } else {
-        // 정적 이미지
-        img.src = gifFrames[0].dataUrl;
-    }
-}
-
-// 편집으로 돌아가기
-function backToEditor() {
-    elements.viewerSection.style.display = 'none';
-    elements.workspace.style.display = 'block';
-    updateStep(3);
-    
-    // 애니메이션 정리
-    animationIntervals.forEach(interval => clearInterval(interval));
-    animationIntervals = [];
-}
-
-// 이전 단계로
-function backToPageSelection() {
-    elements.gifPositionEditor.style.display = 'none';
-    elements.pageSelector.style.display = 'block';
-    updateStep(1);
-    
-    // 상태 초기화
-    gifFile = null;
-    gifFrames = [];
-    elements.gifOverlay.style.display = 'none';
-    elements.gifUploadArea.innerHTML = '<p>GIF 파일을 선택하세요</p>';
-    elements.gifUploadArea.classList.remove('has-gif');
-    elements.btnPreview.disabled = true;
-}
-
-// HTML 다운로드
-function downloadHTML() {
-    try {
-        const htmlContent = generateHTMLViewer();
-        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `pdf-gif-${Date.now()}.html`;
-        a.style.display = 'none';
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        URL.revokeObjectURL(url);
-        
-        alert('HTML 파일이 다운로드되었습니다!');
-        
-    } catch (error) {
-        alert('다운로드에 실패했습니다.');
-    }
-}
-
-// HTML 뷰어 생성
-function generateHTMLViewer() {
-    const canvasDataUrl = elements.viewerCanvas.toDataURL('image/png');
-    const frameDataUrls = gifFrames.map(frame => frame.dataUrl);
-    const frameDelays = gifFrames.map(frame => frame.delay || 500);
-    
-    // 위치 계산
-    const scaleX = elements.viewerCanvas.width / elements.pdfPreviewCanvas.width;
-    const scaleY = elements.viewerCanvas.height / elements.pdfPreviewCanvas.height;
-    
-    const overlayX = gifPosition.x * scaleX;
-    const overlayY = gifPosition.y * scaleY;
-    const overlayWidth = gifPosition.width * scaleX;
-    const overlayHeight = gifPosition.height * scaleY;
-    
-    return `<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF with Animated GIF</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: Arial, sans-serif;
-        }
-        .viewer-container {
-            position: relative;
-            background: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            max-width: 100%;
-            max-height: 90vh;
-        }
-        .pdf-background {
-            display: block;
-            max-width: 100%;
-            height: auto;
-        }
-        .animated-gif {
-            position: absolute;
-            left: ${overlayX}px;
-            top: ${overlayY}px;
-            width: ${overlayWidth}px;
-            height: ${overlayHeight}px;
-            pointer-events: none;
-        }
-        .controls {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .controls button {
-            margin: 0 5px;
-            padding: 8px 16px;
-            border: none;
-            background: #4F46E5;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .controls button:hover {
-            background: #4338CA;
-        }
-        .controls button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .controls { 
-                position: static; 
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            .animated-gif {
-                left: ${overlayX * 0.8}px;
-                top: ${overlayY * 0.8}px;
-                width: ${overlayWidth * 0.8}px;
-                height: ${overlayHeight * 0.8}px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="controls">
-        <button onclick="toggleAnimation()" id="toggleBtn">일시정지</button>
-        <button onclick="resetAnimation()">처음부터</button>
-        <span id="frameInfo">프레임: 1/${frameDataUrls.length}</span>
-    </div>
-    
-    <div class="viewer-container">
-        <img src="${canvasDataUrl}" alt="PDF Background" class="pdf-background">
-        <img src="${frameDataUrls[0]}" alt="Animated GIF" class="animated-gif" id="animatedGif">
-    </div>
-
-    <script>
-        const frames = ${JSON.stringify(frameDataUrls)};
-        const delays = ${JSON.stringify(frameDelays)};
-        let currentFrame = 0;
-        let animationInterval = null;
-        let isPlaying = true;
-
-        function startAnimation() {
-            if (frames.length <= 1) return;
-            
-            animationInterval = setInterval(() => {
-                currentFrame = (currentFrame + 1) % frames.length;
-                document.getElementById('animatedGif').src = frames[currentFrame];
-                document.getElementById('frameInfo').textContent = 
-                    \`프레임: \${currentFrame + 1}/\${frames.length}\`;
-            }, delays[0] || 500);
-        }
-
-        function stopAnimation() {
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-            }
-        }
-
-        function toggleAnimation() {
-            const btn = document.getElementById('toggleBtn');
-            if (isPlaying) {
-                stopAnimation();
-                btn.textContent = '재생';
-                isPlaying = false;
-            } else {
-                startAnimation();
-                btn.textContent = '일시정지';
-                isPlaying = true;
-            }
-        }
-
-        function resetAnimation() {
-            stopAnimation();
-            currentFrame = 0;
-            document.getElementById('animatedGif').src = frames[0];
-            document.getElementById('frameInfo').textContent = \`프레임: 1/\${frames.length}\`;
-            
-            if (isPlaying) {
-                startAnimation();
-            }
-        }
-
-        // 페이지 로드 시 애니메이션 시작
-        document.addEventListener('DOMContentLoaded', function() {
-            if (frames.length > 1) {
-                startAnimation();
-            } else {
-                document.getElementById('toggleBtn').disabled = true;
-                document.getElementById('frameInfo').textContent = '정적 이미지';
-            }
-        });
-
-        // 페이지 언로드 시 애니메이션 정리
-        window.addEventListener('beforeunload', function() {
-            stopAnimation();
-        });
-    </script>
-</body>
-</html>`;
-}
-
-// 처리 중 표시
-function showProcessing(title, message) {
-    document.getElementById('processingTitle').textContent = title;
-    document.getElementById('processingMessage').textContent = message;
-    elements.processingOverlay.style.display = 'flex';
-}
-
-// 처리 중 숨기기
-function hideProcessing() {
-    elements.processingOverlay.style.display = 'none';
-}
-
-// 새로 시작
-function startOver() {
-    // 애니메이션 정리
-    animationIntervals.forEach(interval => clearInterval(interval));
-    animationIntervals = [];
-    
-    // 상태 초기화
-    currentPdfFile = null;
-    pdfDoc = null;
-    pdfPages = [];
-    selectedPageIndex = -1;
-    gifFile = null;
-    gifFrames = [];
-    
-    // URL 정리
-    const existingOverlays = document.querySelectorAll('.animated-overlay img, .animated-overlay video');
-    existingOverlays.forEach(element => {
-        if (element.src && element.src.startsWith('blob:')) {
-            URL.revokeObjectURL(element.src);
-        }
-    });
-    
-    // 페이지 새로고침
-    location.reload();
-}
-
-// 단계 업데이트
-function updateStep(step) {
-    document.querySelectorAll('.step').forEach(el => {
-        el.classList.remove('active');
-        if (parseInt(el.dataset.step) <= step) {
-            el.classList.add('active');
-        }
-    });
-}
-
-// 에러 처리 함수
-function handleError(error, context) {
-    console.error(`${context}:`, error);
-    
-    let userMessage = '처리 중 오류가 발생했습니다.';
-    
-    if (error.message) {
-        if (error.message.includes('Invalid PDF')) {
-            userMessage = '유효하지 않은 PDF 파일입니다.';
-        } else if (error.message.includes('memory') || error.message.includes('size')) {
-            userMessage = '파일이 너무 큽니다. 더 작은 파일을 사용해주세요.';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-            userMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
-        }
-    }
-    
-    alert(userMessage);
-    hideProcessing();
-}
-
-// 메모리 사용량 모니터링 (선택적)
-function checkMemoryUsage() {
-    if ('memory' in performance) {
-        const memory = performance.memory;
-        const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
-        const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024);
-        
-        console.log(`메모리 사용량: ${usedMB}MB / ${totalMB}MB`);
-        
-        // 메모리 사용량이 너무 높으면 경고
-        if (usedMB > 500) {
-            console.warn('메모리 사용량이 높습니다. 성능에 영향을 줄 수 있습니다.');
-        }
-    }
-}
-
-// 디버깅을 위한 정보 출력
-function debugInfo() {
-    console.log('=== PDF GIF 디버그 정보 ===');
-    console.log('PDF 로드됨:', !!pdfDoc);
-    console.log('선택된 페이지:', selectedPageIndex);
-    console.log('GIF 프레임 수:', gifFrames.length);
-    console.log('GIF 위치:', gifPosition);
-    console.log('브라우저 지원:');
-    console.log('- FileReader:', typeof FileReader !== 'undefined');
-    console.log('- Canvas:', typeof HTMLCanvasElement !== 'undefined');
-    console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
-    console.log('- gifuct-js:', typeof gifuct !== 'undefined');
-    checkMemoryUsage();
-    console.log('==========================');
-}
-
-// 전역 함수로 노출 (디버깅용)
-window.debugPdfGif = debugInfo;
-
-// 페이지 언로드 시 정리
-window.addEventListener('beforeunload', function() {
-    animationIntervals.forEach(interval => clearInterval(interval));
-    
-    // Blob URL 정리
-    const images = document.querySelectorAll('img[src^="blob:"]');
-    images.forEach(img => {
-        URL.revokeObjectURL(img.src);
-    });
-});
-
-// 전역 에러 핸들러
-window.addEventListener('error', function(e) {
-    console.error('전역 에러:', e.error);
-    if (elements.processingOverlay.style.display !== 'none') {
-        hideProcessing();
-        alert('예상치 못한 오류가 발생했습니다. 페이지를 새로고침해주세요.');
-    }
-});
-
-// Promise rejection 핸들러
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('처리되지 않은 Promise 에러:', e.reason);
-    e.preventDefault(); // 기본 에러 출력 방지
-    
-    if (elements.processingOverlay.style.display !== 'none') {
-        hideProcessing();
-        alert('처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-    }
-});
+//
