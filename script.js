@@ -444,7 +444,7 @@ function debugInfo() {
 }
 
 // 전역 함수로 노출 (디버깅용)
-window.debugPdfGif = debugInfo; 전역 변수
+window.debugPdfGif = debugInfo; // 전역 변수
 let currentPdfFile = null;
 let originalPdfDoc = null; // 원본 PDF (PDF-lib)
 let renderPdfDoc = null;   // 렌더링용 PDF (PDF.js)
