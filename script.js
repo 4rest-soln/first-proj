@@ -329,20 +329,43 @@ function backToPageSelection() {
 
 // 처리 중 표시
 function showProcessing(title, message) {
-    document.getElementById('processingTitle').textContent = title;
-    document.getElementById('processingMessage').textContent = message;
-    elements.processingOverlay.style.display = 'flex';
+    if (!elements) {
+        elements = getElements();
+    }
+    
+    const titleEl = document.getElementById('processingTitle');
+    const messageEl = document.getElementById('processingMessage');
+    
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+    if (elements.processingOverlay) {
+        elements.processingOverlay.style.display = 'flex';
+    }
 }
 
 // 처리 중 숨기기
 function hideProcessing() {
-    elements.processingOverlay.style.display = 'none';
+    if (!elements) {
+        elements = getElements();
+    }
+    
+    if (elements.processingOverlay) {
+        elements.processingOverlay.style.display = 'none';
+    }
 }
 
 // 진행률 업데이트
 function updateProgress(percent) {
-    elements.progressFill.style.width = percent + '%';
-    elements.progressText.textContent = Math.round(percent) + '%';
+    if (!elements) {
+        elements = getElements();
+    }
+    
+    if (elements.progressFill) {
+        elements.progressFill.style.width = percent + '%';
+    }
+    if (elements.progressText) {
+        elements.progressText.textContent = Math.round(percent) + '%';
+    }
 }
 
 // 새로 시작
@@ -565,15 +588,27 @@ function initializeEventListeners() {
 
 // 속도 표시 업데이트
 function updateSpeedDisplay() {
-    elements.speedDisplay.textContent = elements.speedControl.value + 'ms';
+    if (elements.speedDisplay) {
+        elements.speedDisplay.textContent = elements.speedControl.value + 'ms';
+    }
 }
 
 // PDF 업로드 처리
 async function handlePdfUpload(e) {
+    console.log('PDF 파일 업로드 핸들러 실행');
+    
+    if (!elements) {
+        elements = getElements();
+    }
+    
     const file = e.target.files[0];
+    console.log('선택된 파일:', file);
+    
     if (file && file.type === 'application/pdf') {
+        console.log('PDF 파일 확인됨, 로드 시작');
         await loadPdf(file);
     } else {
+        console.log('PDF가 아닌 파일:', file ? file.type : 'no file');
         alert('PDF 파일만 업로드 가능합니다.');
     }
 }
@@ -607,7 +642,13 @@ function handleDrop(e) {
 
 // PDF 로드 및 썸네일 생성
 async function loadPdf(file) {
-    showProcessing('PDF 분석 중...', 'PDF 정보를 읽고 있습니다');
+    console.log('PDF 로드 함수 시작:', file.name);
+    
+    if (!elements) {
+        elements = getElements();
+    }
+    
+    showProcessing('PDF analyzing...', 'Reading PDF information');
     updateProgress(10);
     
     try {
@@ -636,7 +677,7 @@ async function loadPdf(file) {
         
         // UI 업데이트
         document.getElementById('pdfFileName').textContent = file.name;
-        document.getElementById('pdfPageCount').textContent = `총 페이지 수: ${pdfPages.length}`;
+        document.getElementById('pdfPageCount').textContent = 'Total pages: ' + pdfPages.length;
         
         // 페이지 썸네일 생성
         await generatePageThumbnails();
