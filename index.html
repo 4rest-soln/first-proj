@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF GIF - PDF에 움직이는 이미지 넣기</title>
+    <title>PDF GIF - 실제 움직이는 GIF가 포함된 PDF 생성</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -28,8 +28,8 @@
         <!-- 메인 섹션 -->
         <main class="main">
             <div class="hero">
-                <h1>PDF에 <span class="highlight">움직이는 GIF</span>를<br>간편하게 삽입하세요</h1>
-                <p class="subtitle">PDF 문서에 생동감을 더해보세요. 원하는 위치에 GIF를 넣고 실시간으로 확인하세요.</p>
+                <h1>PDF에 <span class="highlight">실제 움직이는 GIF</span>를<br>삽입하여 완전한 PDF 생성</h1>
+                <p class="subtitle">전체 PDF 파일에 자동 순환 재생되는 GIF를 삽입하고 실제 PDF로 다운로드하세요.</p>
             </div>
 
             <!-- 업로드 영역 -->
@@ -70,7 +70,7 @@
                     </div>
                     <div class="step" data-step="4">
                         <div class="step-number">4</div>
-                        <span>미리보기</span>
+                        <span>PDF 생성</span>
                     </div>
                 </div>
 
@@ -79,6 +79,7 @@
                     <div class="pdf-info">
                         <h3 id="pdfFileName">PDF 파일 정보</h3>
                         <p id="pdfPageCount">총 페이지 수: -</p>
+                        <p class="info-text">GIF가 삽입될 페이지를 선택하세요. 나머지 페이지는 원본 그대로 유지됩니다.</p>
                     </div>
                     
                     <div class="pages-grid" id="pagesGrid">
@@ -131,10 +132,24 @@
                                 </div>
                             </div>
 
+                            <div class="control-group">
+                                <label>애니메이션 설정</label>
+                                <div class="control-row">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="autoPlay" checked>
+                                        <span>자동 재생</span>
+                                    </label>
+                                </div>
+                                <div class="control-row">
+                                    <input type="range" class="range-input" id="speedControl" min="50" max="2000" value="500">
+                                    <span id="speedDisplay">500ms</span>
+                                </div>
+                            </div>
+
                             <div class="action-buttons" style="flex-direction: column;">
                                 <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
-                                <button class="btn-primary" id="btnPreview" onclick="showPreview()" disabled>
-                                    미리보기
+                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateRealPdf()" disabled>
+                                    완전한 PDF 생성하기
                                 </button>
                             </div>
                         </div>
@@ -142,51 +157,67 @@
                 </div>
             </div>
 
-            <!-- 뷰어 섹션 -->
-            <div class="viewer-section" id="viewerSection">
-                <div class="viewer-controls">
-                    <button class="btn-secondary" onclick="backToEditor()">편집으로 돌아가기</button>
-                    <button class="btn-primary" onclick="downloadHTML()">HTML로 다운로드</button>
-                </div>
-                <div class="viewer-container" id="viewerContainer">
-                    <canvas id="viewerCanvas"></canvas>
-                    <!-- 애니메이션 오버레이들이 여기에 동적으로 추가됩니다 -->
-                </div>
-            </div>
-
             <!-- 처리 중 표시 -->
             <div class="processing-overlay" id="processingOverlay" style="display: none;">
                 <div class="processing-content">
                     <div class="spinner"></div>
-                    <h3 id="processingTitle">PDF 처리 중...</h3>
+                    <h3 id="processingTitle">PDF 생성 중...</h3>
                     <p id="processingMessage">잠시만 기다려주세요</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">0%</p>
+                </div>
+            </div>
+
+            <!-- 완료 화면 -->
+            <div class="completion-screen" id="completionScreen" style="display: none;">
+                <div class="completion-content">
+                    <div class="success-icon">
+                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                            <circle cx="32" cy="32" r="32" fill="#10B981" fill-opacity="0.1"/>
+                            <path d="M20 32L28 40L44 24" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2>PDF 생성 완료!</h2>
+                    <p>움직이는 GIF가 포함된 완전한 PDF 파일이 생성되었습니다</p>
+                    <div class="completion-actions">
+                        <button class="btn-primary" onclick="downloadGeneratedPdf()">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M10 14L6 10M10 14L14 10M10 14V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            PDF 다운로드
+                        </button>
+                        <button class="btn-secondary" onclick="startOver()">새 파일 시작</button>
+                    </div>
                 </div>
             </div>
         </main>
 
         <!-- 사용 방법 섹션 -->
         <section class="how-it-works" id="how-it-works">
-            <h2>간단한 4단계로 완성</h2>
+            <h2>실제 PDF에 움직이는 GIF 삽입</h2>
             <div class="feature-grid">
                 <div class="feature-card">
                     <div class="feature-icon">📄</div>
                     <h3>PDF 업로드</h3>
-                    <p>편집할 PDF 파일을 선택하세요</p>
+                    <p>편집할 PDF 파일을 선택하세요<br>모든 페이지가 보존됩니다</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎯</div>
                     <h3>페이지 선택</h3>
-                    <p>GIF를 넣을 페이지를 시각적으로 선택하세요</p>
+                    <p>GIF를 넣을 특정 페이지를 선택하세요<br>나머지는 원본 그대로</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🎬</div>
-                    <h3>GIF 삽입 & 위치조정</h3>
-                    <p>GIF를 업로드하고 드래그로 위치를 조정하세요</p>
+                    <h3>GIF 삽입 & 설정</h3>
+                    <p>실제 움직이는 GIF를 삽입하고<br>자동 재생 설정을 조정하세요</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">✨</div>
-                    <h3>실시간 미리보기</h3>
-                    <p>애니메이션이 적용된 결과를 바로 확인하세요</p>
+                    <h3>완전한 PDF 생성</h3>
+                    <p>모든 페이지가 포함된<br>실제 PDF 파일을 다운로드하세요</p>
                 </div>
             </div>
         </section>
@@ -194,6 +225,7 @@
 
     <!-- 외부 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifuct-js/2.1.2/gifuct-js.umd.js"></script>
     <script>
         // PDF.js worker 설정
