@@ -15,7 +15,175 @@
     --gray-700: #374151;
     --gray-800: #1F2937;
     --gray-900: #111827;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0/* 기능 그리드 */
+.how-it-works {
+    padding: 80px 0;
+    background: white;
+    margin-top: 80px;
+}
+
+.how-it-works h2 {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 48px;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 32px;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 32px;
+    border-radius: 12px;
+    background: var(--gray-50);
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.feature-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.feature-card p {
+    color: var(--gray-600);
+    font-size: 14px;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 32px;
+    }
+    
+    .subtitle {
+        font-size: 16px;
+    }
+    
+    .steps {
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    
+    .step span {
+        display: none;
+    }
+    
+    .workspace {
+        padding: 24px;
+    }
+    
+    .editor-container {
+        flex-direction: column;
+    }
+    
+    .controls-panel {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .control-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .control-input {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .gif-upload-area {
+        padding: 15px;
+    }
+    
+    .pdf-preview-container {
+        max-width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .completion-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .completion-actions button {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .controls-panel {
+        padding: 16px;
+    }
+    
+    .control-group {
+        margin-bottom: 16px;
+    }
+    
+    .control-input {
+        padding: 10px 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .upload-box {
+        padding: 40px 20px;
+    }
+    
+    .hero h1 {
+        font-size: 28px;
+    }
+    
+    .subtitle {
+        font-size: 16px;
+        padding: 0 10px;
+    }
+    
+    .processing-content {
+        margin: 20px;
+        padding: 30px 20px;
+    }
+}05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
