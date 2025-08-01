@@ -836,10 +836,10 @@ async function generateRealPdf() {
     }
 }
 
-// Add animated GIF to PDF page (Simplified and more reliable approach)
+// Add animated GIF to PDF page (Real JavaScript Animation)
 async function addAnimatedGifToPdfPage(pdfDoc, page, pageIndex) {
     try {
-        console.log('Adding animated GIF to PDF page - Simplified approach');
+        console.log('Adding REAL animated GIF with JavaScript to PDF');
         
         // Get page size
         const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -858,9 +858,13 @@ async function addAnimatedGifToPdfPage(pdfDoc, page, pageIndex) {
         
         console.log('PDF coordinates:', { pdfX, pdfY, pdfWidth, pdfHeight });
         
+        // Get animation settings
+        const autoPlay = elements.autoPlay.checked;
+        const frameDelay = parseInt(elements.speedControl.value);
+        
         if (gifFrames.length === 1) {
-            // Single frame - simple static image
-            console.log('Inserting single frame as static image');
+            // Single frame - just insert as static image
+            console.log('Single frame detected, inserting as static image');
             const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
             
             page.drawImage(embeddedImage, {
@@ -870,125 +874,256 @@ async function addAnimatedGifToPdfPage(pdfDoc, page, pageIndex) {
                 height: pdfHeight,
             });
             
-            console.log('Static image inserted successfully');
             return true;
         }
         
-        // Multiple frames - create overlapping images with visual effect
-        console.log(`Creating multi-frame effect with ${gifFrames.length} frames`);
+        // Multiple frames - create real JavaScript animation
+        console.log(`Creating JavaScript animation with ${gifFrames.length} frames`);
         
-        // Method 1: Create a composite image showing all frames in a sequence
-        const compositeCanvas = document.createElement('canvas');
-        const frameWidth = Math.floor(pdfWidth / Math.min(gifFrames.length, 4)); // Max 4 frames side by side
-        const frameHeight = pdfHeight;
-        
-        compositeCanvas.width = frameWidth * Math.min(gifFrames.length, 4);
-        compositeCanvas.height = frameHeight;
-        const compositeCtx = compositeCanvas.getContext('2d');
-        
-        // Fill with white background
-        compositeCtx.fillStyle = 'white';
-        compositeCtx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
-        
-        // Draw frames side by side
-        for (let i = 0; i < Math.min(gifFrames.length, 4); i++) {
-            const frameImg = new Image();
-            frameImg.src = gifFrames[i].dataUrl;
-            
-            await new Promise((resolve) => {
-                frameImg.onload = () => {
-                    compositeCtx.drawImage(frameImg, i * frameWidth, 0, frameWidth, frameHeight);
-                    resolve();
-                };
-            });
+        // Embed all frame images
+        const embeddedImages = [];
+        for (let i = 0; i < gifFrames.length; i++) {
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
+            embeddedImages.push(embeddedImage);
         }
         
-        // Convert composite to PNG
-        const compositeBlob = await new Promise(resolve => {
-            compositeCanvas.toBlob(resolve, 'image/png', 1.0);
-        });
+        console.log('All frames embedded successfully');
         
-        if (compositeBlob) {
-            const compositeBuffer = await compositeBlob.arrayBuffer();
-            const embeddedComposite = await pdfDoc.embedPng(compositeBuffer);
+        // Create form for animation control
+        const form = pdfDoc.getForm();
+        
+        // Create image fields for each frame
+        const imageFields = [];
+        for (let i = 0; i < embeddedImages.length; i++) {
+            const fieldName = `animFrame_${pageIndex}_${i}`;
             
-            // Draw the composite image
-            page.drawImage(embeddedComposite, {
+            // Create a button field that will display the image
+            const imageButton = form.createButton(fieldName);
+            
+            // Set up the button to display the frame image
+            imageButton.addToPage(page, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+                backgroundColor: PDFLib.rgb(1, 1, 1),
+                borderWidth: 0
+            });
+            
+            // Try to set the image as the button's appearance
+            try {
+                // This is the key - we need to set up multiple appearances
+                const buttonDict = imageButton.acroField.dict;
+                const appearanceDict = pdfDoc.context.obj({});
+                const normalAppearanceDict = pdfDoc.context.obj({});
+                
+                // Create XObject for the image
+                const xObjectRef = pdfDoc.context.register(
+                    pdfDoc.context.formXObject(
+                        embeddedImages[i].embed(),
+                        {
+                            BBox: [0, 0, pdfWidth, pdfHeight],
+                            Matrix: [1, 0, 0, 1, 0, 0]
+                        }
+                    )
+                );
+                
+                normalAppearanceDict.set(PDFLib.PDFName.of('N'), xObjectRef);
+                appearanceDict.set(PDFLib.PDFName.of('N'), normalAppearanceDict);
+                buttonDict.set(PDFLib.PDFName.of('AP'), appearanceDict);
+                
+            } catch (appearanceError) {
+                console.log(`Appearance setting failed for frame ${i}, trying alternative:`, appearanceError.message);
+                
+                // Alternative: Draw the image directly on the page for the first frame
+                if (i === 0) {
+                    page.drawImage(embeddedImages[i], {
+                        x: pdfX,
+                        y: pdfY,
+                        width: pdfWidth,
+                        height: pdfHeight,
+                    });
+                }
+            }
+            
+            imageFields.push(imageButton);
+            
+            // Hide all frames except the first one initially
+            if (i > 0) {
+                try {
+                    imageButton.setHidden(true);
+                } catch (hideError) {
+                    console.log(`Could not hide frame ${i}`);
+                }
+            }
+        }
+        
+        // Create the main animation JavaScript
+        const animationScript = `
+console.println("PDF Animation Script Loaded for page ${pageIndex}");
+
+var currentFrame_${pageIndex} = 0;
+var totalFrames_${pageIndex} = ${gifFrames.length};
+var frameDelay_${pageIndex} = ${frameDelay};
+var autoPlay_${pageIndex} = ${autoPlay};
+var animationTimer_${pageIndex} = null;
+var isAnimating_${pageIndex} = false;
+
+function hideAllFrames_${pageIndex}() {
+    for (var i = 0; i < totalFrames_${pageIndex}; i++) {
+        try {
+            var field = this.getField("animFrame_${pageIndex}_" + i);
+            if (field) {
+                field.hidden = true;
+            }
+        } catch (e) {
+            console.println("Could not hide frame " + i + ": " + e.message);
+        }
+    }
+}
+
+function showFrame_${pageIndex}(frameIndex) {
+    try {
+        var field = this.getField("animFrame_${pageIndex}_" + frameIndex);
+        if (field) {
+            field.hidden = false;
+            console.println("Showing frame " + frameIndex);
+        }
+    } catch (e) {
+        console.println("Could not show frame " + frameIndex + ": " + e.message);
+    }
+}
+
+function nextFrame_${pageIndex}() {
+    console.println("Next frame: " + currentFrame_${pageIndex} + " -> " + ((currentFrame_${pageIndex} + 1) % totalFrames_${pageIndex}));
+    
+    // Hide current frame
+    hideAllFrames_${pageIndex}();
+    
+    // Move to next frame
+    currentFrame_${pageIndex} = (currentFrame_${pageIndex} + 1) % totalFrames_${pageIndex};
+    
+    // Show new frame
+    showFrame_${pageIndex}(currentFrame_${pageIndex});
+    
+    // Schedule next frame if auto-playing
+    if (autoPlay_${pageIndex} && isAnimating_${pageIndex}) {
+        animationTimer_${pageIndex} = app.setTimeOut("nextFrame_${pageIndex}()", frameDelay_${pageIndex});
+    }
+}
+
+function startAnimation_${pageIndex}() {
+    console.println("Starting animation for page ${pageIndex}");
+    isAnimating_${pageIndex} = true;
+    
+    if (animationTimer_${pageIndex}) {
+        app.clearTimeOut(animationTimer_${pageIndex});
+    }
+    
+    // Show first frame
+    hideAllFrames_${pageIndex}();
+    showFrame_${pageIndex}(0);
+    currentFrame_${pageIndex} = 0;
+    
+    // Start animation loop
+    if (totalFrames_${pageIndex} > 1) {
+        animationTimer_${pageIndex} = app.setTimeOut("nextFrame_${pageIndex}()", frameDelay_${pageIndex});
+    }
+}
+
+function stopAnimation_${pageIndex}() {
+    console.println("Stopping animation for page ${pageIndex}");
+    isAnimating_${pageIndex} = false;
+    
+    if (animationTimer_${pageIndex}) {
+        app.clearTimeOut(animationTimer_${pageIndex});
+        animationTimer_${pageIndex} = null;
+    }
+}
+
+// Initialize when page is opened
+if (autoPlay_${pageIndex}) {
+    app.setTimeOut("startAnimation_${pageIndex}()", 500);
+} else {
+    // Just show the first frame
+    hideAllFrames_${pageIndex}();
+    showFrame_${pageIndex}(0);
+}
+`;
+        
+        // Add the JavaScript to the PDF document
+        try {
+            pdfDoc.addJavaScript(`animation_page_${pageIndex}`, animationScript);
+            console.log('Animation JavaScript added to PDF');
+        } catch (jsError) {
+            console.error('Failed to add JavaScript to PDF:', jsError);
+            
+            // Fallback: just show the first frame as static image
+            page.drawImage(embeddedImages[0], {
                 x: pdfX,
                 y: pdfY,
                 width: pdfWidth,
                 height: pdfHeight,
             });
             
-            // Add a text label
-            page.drawText(`Animated GIF (${gifFrames.length} frames)`, {
-                x: pdfX,
-                y: pdfY - 15,
-                size: 8,
-                color: PDFLib.rgb(0.5, 0.5, 0.5)
-            });
-            
-            console.log('Multi-frame composite image inserted successfully');
-            return true;
+            console.log('Fallback: Added first frame as static image');
         }
         
-        // Fallback: Just use the first frame
-        console.log('Composite failed, using first frame as fallback');
-        const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+        // Add control button if not auto-play
+        if (!autoPlay) {
+            const controlButton = form.createButton(`control_${pageIndex}`);
+            controlButton.addToPage('▶ Play Animation', page, {
+                x: pdfX,
+                y: pdfY - 35,
+                width: Math.min(pdfWidth, 120),
+                height: 25,
+                fontSize: 10,
+                backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
+                borderColor: PDFLib.rgb(0.1, 0.2, 0.6),
+                borderWidth: 1
+            });
+            
+            try {
+                controlButton.setAction(
+                    PDFLib.PDFAction.createJavaScript(`
+                        if (isAnimating_${pageIndex}) {
+                            stopAnimation_${pageIndex}();
+                            this.getField("control_${pageIndex}").buttonSetCaption("▶ Play Animation");
+                        } else {
+                            startAnimation_${pageIndex}();
+                            this.getField("control_${pageIndex}").buttonSetCaption("⏸ Stop Animation");
+                        }
+                    `)
+                );
+                console.log('Control button action set');
+            } catch (actionError) {
+                console.log('Control button action failed:', actionError.message);
+            }
+        }
         
-        page.drawImage(embeddedImage, {
-            x: pdfX,
-            y: pdfY,
-            width: pdfWidth,
-            height: pdfHeight,
-        });
-        
-        // Add frame count indicator
-        page.drawText(`GIF: ${gifFrames.length} frames`, {
-            x: pdfX,
-            y: pdfY - 15,
-            size: 8,
-            color: PDFLib.rgb(0.3, 0.3, 0.8)
-        });
-        
-        console.log('Fallback image inserted successfully');
+        console.log('Real JavaScript animation setup complete');
         return true;
         
     } catch (error) {
-        console.error('Failed to add GIF to PDF:', error);
+        console.error('Real animation setup failed:', error);
         
-        // Last resort: try to add something visible
+        // Emergency fallback: just show first frame
         try {
-            // Draw a colored rectangle to show where the GIF should be
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
             const pageSize = page.getSize();
             const scaleX = pageSize.width / elements.pdfPreviewCanvas.width;
             const scaleY = pageSize.height / elements.pdfPreviewCanvas.height;
             
-            const rectX = gifPosition.x * scaleX;
-            const rectY = pageSize.height - (gifPosition.y + gifPosition.height) * scaleY;
-            const rectWidth = gifPosition.width * scaleX;
-            const rectHeight = gifPosition.height * scaleY;
-            
-            page.drawRectangle({
-                x: rectX,
-                y: rectY,
-                width: rectWidth,
-                height: rectHeight,
-                borderColor: PDFLib.rgb(0.2, 0.5, 1),
-                borderWidth: 2,
-                color: PDFLib.rgb(0.8, 0.9, 1),
+            page.drawImage(embeddedImage, {
+                x: gifPosition.x * scaleX,
+                y: pageSize.height - (gifPosition.y + gifPosition.height) * scaleY,
+                width: gifPosition.width * scaleX,
+                height: gifPosition.height * scaleY,
             });
             
-            page.drawText('GIF Position', {
-                x: rectX + 5,
-                y: rectY + rectHeight/2,
-                size: 10,
-                color: PDFLib.rgb(0.2, 0.2, 0.8)
-            });
-            
-            console.log('Emergency fallback rectangle drawn');
-        } catch (emergencyError) {
-            console.error('Even emergency fallback failed:', emergencyError);
+            console.log('Emergency fallback: static image inserted');
+        } catch (fallbackError) {
+            console.error('Even emergency fallback failed:', fallbackError);
         }
         
         return false;
