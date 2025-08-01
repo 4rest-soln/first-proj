@@ -114,17 +114,16 @@
     
     /* 입력창 반응형 수정 */
     .control-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 8px;
         width: 100%;
-        flex-wrap: nowrap; /* 한 줄 유지 */
     }
     
     .control-input {
-        flex: 1;
-        min-width: 60px; /* 최소 너비 보장 */
-        max-width: none;
-        width: auto;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
     }
     
     .gif-upload-area {
