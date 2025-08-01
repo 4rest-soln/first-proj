@@ -226,10 +226,20 @@
     <!-- 외부 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifuct-js/2.1.2/gifuct-js.umd.js"></script>
+    <script src="https://unpkg.com/gifuct-js@2.1.2/dist/gifuct-js.umd.js"></script>
     <script>
         // PDF.js worker 설정
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // gifuct-js 로딩 확인
+        window.addEventListener('load', function() {
+            console.log('Page loaded, checking gifuct-js:', typeof gifuct);
+            if (typeof gifuct !== 'undefined') {
+                console.log('gifuct-js loaded successfully');
+            } else {
+                console.error('gifuct-js failed to load');
+            }
+        });
     </script>
     <script src="script.js"></script>
 </body>
