@@ -112,22 +112,19 @@
         box-sizing: border-box;
     }
     
+    /* 입력창 반응형 수정 */
     .control-row {
-        flex-direction: row;
+        display: flex;
         gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
+        width: 100%;
+        flex-wrap: nowrap; /* 한 줄 유지 */
     }
     
     .control-input {
         flex: 1;
-        min-width: 80px;
-        max-width: 120px;
-        padding: 8px 12px;
-        border: 2px solid var(--gray-300);
-        border-radius: 8px;
-        font-size: 14px;
-        transition: var(--transition);
+        min-width: 60px; /* 최소 너비 보장 */
+        max-width: none;
+        width: auto;
     }
     
     .gif-upload-area {
