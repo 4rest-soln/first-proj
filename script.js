@@ -63,36 +63,33 @@ document.addEventListener('DOMContentLoaded', function() {
     checkBrowserSupport();
 });
 
-// Check browser support
+// Check browser support (updated)
 function checkBrowserSupport() {
     const features = {
         fileReader: typeof FileReader !== 'undefined',
         canvas: typeof HTMLCanvasElement !== 'undefined',
         pdfjs: typeof pdfjsLib !== 'undefined',
         pdflib: typeof PDFLib !== 'undefined',
-        gifuct: typeof gifuct !== 'undefined'
+        omggif: typeof GifReader !== 'undefined'
     };
 
-    console.log('Browser support status:', features);
+    console.log('=== Browser Support Check ===');
+    Object.entries(features).forEach(([name, supported]) => {
+        console.log(`${name}: ${supported ? '✅' : '❌'}`);
+    });
     
-    // Check gifuct-js more thoroughly
-    if (typeof gifuct !== 'undefined') {
-        console.log('gifuct-js details:', {
-            type: typeof gifuct,
-            hasParseGIF: typeof gifuct.parseGIF === 'function',
-            hasDecompressFrames: typeof gifuct.decompressFrames === 'function',
-            methods: Object.keys(gifuct)
-        });
-    } else {
-        console.warn('gifuct-js library not loaded. Check if the CDN link is correct.');
-        console.log('Falling back to basic image processing for GIF files.');
+    if (!features.omggif) {
+        console.warn('⚠️ omggif library not loaded - GIF animation may not work');
+        console.log('Will fall back to static image processing');
     }
     
     if (!features.fileReader || !features.canvas || !features.pdfjs || !features.pdflib) {
+        console.error('❌ Essential features missing');
         alert('Browser does not support required features. Please use latest browser.');
         return false;
     }
     
+    console.log('✅ Browser support check complete');
     return true;
 }
 
@@ -433,120 +430,153 @@ async function handleGifUpload(e) {
     }
 }
 
-// Extract GIF frames (improved version with better error handling)
+// Extract GIF frames using omggif library
 async function extractGifFrames(gifFile) {
-    console.log('GIF frame extraction started');
+    console.log('Starting GIF frame extraction with omggif');
     
     try {
         const arrayBuffer = await gifFile.arrayBuffer();
-        console.log('GIF file size:', arrayBuffer.byteLength, 'bytes');
+        const uint8Array = new Uint8Array(arrayBuffer);
         
-        // Try using gifuct-js for frame extraction
-        if (typeof gifuct !== 'undefined' && gifuct.parseGIF) {
+        console.log('GIF file loaded, size:', uint8Array.length, 'bytes');
+        
+        // Try to parse with omggif
+        if (typeof GifReader !== 'undefined') {
             try {
-                console.log('Attempting to parse GIF with gifuct-js');
-                const gif = gifuct.parseGIF(arrayBuffer);
-                console.log('GIF parsed successfully, global screen descriptor:', gif.lsd);
+                const reader = new GifReader(uint8Array);
+                const frameCount = reader.numFrames();
                 
-                const frames = gifuct.decompressFrames(gif, true);
-                console.log(`GIF decompression successful: ${frames.length} frames found`);
+                console.log(`GIF parsed successfully: ${frameCount} frames detected`);
                 
-                if (frames.length > 1) {
-                    const frameData = [];
-                    const maxFrames = Math.min(frames.length, 30); // Max 30 frames
+                if (frameCount > 1) {
+                    console.log('Multi-frame GIF detected, extracting frames...');
                     
-                    for (let i = 0; i < maxFrames; i++) {
+                    const frames = [];
+                    
+                    for (let i = 0; i < Math.min(frameCount, 20); i++) {
                         try {
-                            const frame = frames[i];
-                            console.log(`Processing frame ${i + 1}:`, {
-                                dims: frame.dims,
-                                delay: frame.delay,
-                                disposalType: frame.disposalType
-                            });
+                            const frameInfo = reader.frameInfo(i);
+                            console.log(`Frame ${i}:`, frameInfo);
                             
+                            // Create canvas for this frame
                             const canvas = document.createElement('canvas');
-                            canvas.width = gif.lsd.width;
-                            canvas.height = gif.lsd.height;
+                            canvas.width = reader.width;
+                            canvas.height = reader.height;
                             const ctx = canvas.getContext('2d');
                             
-                            // Handle background based on disposal method
-                            if (i === 0 || frame.disposalType === 2) {
-                                // Clear canvas and set white background
-                                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                ctx.fillStyle = 'white';
-                                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                console.log(`Frame ${i}: Applied background clear`);
-                            } else if (frame.disposalType === 1) {
-                                // Keep previous frame (do nothing)
-                                console.log(`Frame ${i}: Keeping previous frame`);
-                            }
+                            // Fill with white background
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
                             
-                            // Create ImageData from frame patch
-                            const imageData = new ImageData(
-                                new Uint8ClampedArray(frame.patch),
-                                frame.dims.width,
-                                frame.dims.height
-                            );
+                            // Create ImageData for the frame
+                            const imageData = ctx.createImageData(canvas.width, canvas.height);
                             
-                            // Draw frame patch at correct position
-                            const tempCanvas = document.createElement('canvas');
-                            tempCanvas.width = frame.dims.width;
-                            tempCanvas.height = frame.dims.height;
-                            const tempCtx = tempCanvas.getContext('2d');
-                            tempCtx.putImageData(imageData, 0, 0);
+                            // Decode frame pixels
+                            reader.decodeAndBlitFrameRGBA(i, imageData.data);
                             
-                            ctx.drawImage(tempCanvas, frame.dims.left, frame.dims.top);
+                            // Put the image data on canvas
+                            ctx.putImageData(imageData, 0, 0);
                             
-                            // Convert to PNG blob for PDF-lib
+                            // Convert to blob
                             const blob = await new Promise(resolve => {
                                 canvas.toBlob(resolve, 'image/png', 1.0);
                             });
                             
                             if (blob) {
-                                const frameArrayBuffer = await blob.arrayBuffer();
-                                frameData.push({
-                                    data: frameArrayBuffer,
+                                const frameBuffer = await blob.arrayBuffer();
+                                frames.push({
+                                    data: frameBuffer,
                                     dataUrl: canvas.toDataURL('image/png'),
-                                    delay: Math.max(frame.delay || 100, 50) // Minimum 50ms delay
+                                    delay: Math.max(frameInfo.delay * 10, 100) // Convert to ms, min 100ms
                                 });
-                                console.log(`Frame ${i + 1} processed successfully`);
-                            } else {
-                                console.error(`Frame ${i + 1} blob creation failed`);
+                                
+                                console.log(`Frame ${i} extracted successfully`);
                             }
                             
                         } catch (frameError) {
-                            console.error(`Error processing frame ${i + 1}:`, frameError);
-                            continue; // Skip this frame and continue
+                            console.error(`Error extracting frame ${i}:`, frameError);
+                            continue;
                         }
                     }
                     
-                    if (frameData.length > 1) {
-                        console.log(`Multi-frame GIF processing complete: ${frameData.length} frames extracted`);
-                        return frameData;
+                    if (frames.length > 1) {
+                        console.log(`Successfully extracted ${frames.length} frames`);
+                        return frames;
                     } else {
-                        console.log('Only one valid frame extracted, treating as static image');
+                        console.log('Frame extraction failed, falling back to static image');
                     }
                 } else {
                     console.log('Single frame GIF detected');
                 }
                 
-            } catch (gifuctError) {
-                console.error('gifuct-js parsing failed:', gifuctError);
+            } catch (readerError) {
+                console.error('omggif parsing failed:', readerError);
                 console.log('Falling back to static image processing');
             }
         } else {
-            console.log('gifuct-js not available or not properly loaded');
-            console.log('Available gifuct methods:', typeof gifuct === 'object' ? Object.keys(gifuct) : 'not an object');
+            console.log('omggif library not available');
         }
         
-        // Fallback: process as basic image
-        console.log('Using basic image processing method');
-        return await createFramesFromImage(gifFile);
+        // Fallback to static image
+        console.log('Processing as static image');
+        return await createStaticFrame(gifFile);
         
     } catch (error) {
-        console.error('GIF frame extraction failed:', error);
-        throw error;
+        console.error('GIF processing failed completely:', error);
+        throw new Error('Cannot process GIF file: ' + error.message);
     }
+}
+
+// Create single frame from GIF (fallback)
+async function createStaticFrame(gifFile) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        
+        img.onload = async function() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // White background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw image
+                ctx.drawImage(img, 0, 0);
+                
+                // Convert to blob
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png', 1.0);
+                });
+                
+                if (blob) {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    
+                    resolve([{
+                        data: arrayBuffer,
+                        dataUrl: canvas.toDataURL('image/png'),
+                        delay: 1000
+                    }]);
+                } else {
+                    reject(new Error('Failed to create image blob'));
+                }
+                
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load GIF as image'));
+        
+        // Load GIF as image
+        const reader = new FileReader();
+        reader.onload = e => img.src = e.target.result;
+        reader.onerror = () => reject(new Error('Failed to read GIF file'));
+        reader.readAsDataURL(gifFile);
+    });
 }
 
 // Create frames from image (fallback method)
