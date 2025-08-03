@@ -226,7 +226,8 @@
     <!-- 외부 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <!-- GIF 처리를 위한 대안 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- GIF 처리를 위한 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
     <script>
         // PDF.js worker 설정
@@ -235,6 +236,7 @@
         console.log('Libraries loading check:');
         console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
         console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
+        console.log('- jsPDF:', typeof window.jsPDF !== 'undefined');
         console.log('- omggif:', typeof GifReader !== 'undefined');
     </script>
     <script src="script.js"></script>
