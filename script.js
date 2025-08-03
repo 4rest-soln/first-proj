@@ -101,6 +101,9 @@ function checkBrowserSupport() {
 function initializeEventListeners() {
     console.log('Event listener initialization started');
     
+    // Force fix CSS layout issue
+    fixCSSLayout();
+    
     // File upload
     elements.pdfInput.addEventListener('change', handlePdfUpload);
     elements.gifInput.addEventListener('change', handleGifUpload);
@@ -147,6 +150,37 @@ function initializeEventListeners() {
     }
     
     console.log('All event listeners registered');
+}
+
+// Force fix CSS layout (직접 스타일 적용)
+function fixCSSLayout() {
+    console.log('Applying force CSS fix');
+    
+    // Wait for DOM to be ready
+    setTimeout(() => {
+        const controlRows = document.querySelectorAll('.control-row');
+        const controlInputs = document.querySelectorAll('.control-input');
+        
+        controlRows.forEach(row => {
+            row.style.display = 'flex';
+            row.style.gap = '8px';
+            row.style.width = '100%';
+            row.style.margin = '0';
+            row.style.padding = '0';
+        });
+        
+        controlInputs.forEach(input => {
+            input.style.width = 'calc(50% - 4px)';
+            input.style.maxWidth = 'calc(50% - 4px)';
+            input.style.minWidth = 'calc(50% - 4px)';
+            input.style.flex = 'none';
+            input.style.boxSizing = 'border-box';
+            input.style.margin = '0';
+            input.style.padding = '8px 12px';
+        });
+        
+        console.log('Force CSS fix applied');
+    }, 100);
 }
 
 // Update speed display
@@ -1375,11 +1409,11 @@ Q
             }
         }
         
-        // Add manual control button
+        // Add manual control button (fixed encoding issue)
         const form = pdfDoc.getForm();
         const controlBtn = form.createButton(`animControl_${pageIndex}`);
         
-        controlBtn.addToPage('🎬 Toggle Animation', page, {
+        controlBtn.addToPage('Play Animation', page, {
             x: pdfX,
             y: pdfY - 35,
             width: Math.min(pdfWidth, 140),
