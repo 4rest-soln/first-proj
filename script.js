@@ -63,13 +63,14 @@ document.addEventListener('DOMContentLoaded', function() {
     checkBrowserSupport();
 });
 
-// Check browser support (updated)
+// Check browser support (updated for jsPDF)
 function checkBrowserSupport() {
     const features = {
         fileReader: typeof FileReader !== 'undefined',
         canvas: typeof HTMLCanvasElement !== 'undefined',
         pdfjs: typeof pdfjsLib !== 'undefined',
         pdflib: typeof PDFLib !== 'undefined',
+        jspdf: typeof window.jsPDF !== 'undefined',
         omggif: typeof GifReader !== 'undefined'
     };
 
@@ -80,7 +81,10 @@ function checkBrowserSupport() {
     
     if (!features.omggif) {
         console.warn('⚠️ omggif library not loaded - GIF animation may not work');
-        console.log('Will fall back to static image processing');
+    }
+    
+    if (!features.jspdf) {
+        console.warn('⚠️ jsPDF library not loaded - Enhanced JavaScript features unavailable');
     }
     
     if (!features.fileReader || !features.canvas || !features.pdfjs || !features.pdflib) {
@@ -763,77 +767,379 @@ function handleMouseUp() {
     resizeHandle = null;
 }
 
-// Generate real PDF (core function)
+// Generate real PDF using PDF-lib + jsPDF hybrid approach
 async function generateRealPdf() {
     if (!gifFrames.length || selectedPageIndex === -1 || !originalPdfDoc) {
         alert('Required data is missing.');
         return;
     }
     
-    showProcessing('Generating Real PDF...', 'Creating complete PDF with animated GIF');
+    showProcessing('Generating Enhanced PDF...', 'Creating PDF with advanced JavaScript animation');
     updateProgress(5);
     updateStep(4);
     
     try {
-        console.log('=== Real PDF generation started ===');
+        console.log('=== PDF-lib + jsPDF Hybrid Generation Started ===');
         
-        // 1. Create new PDF document
-        const newPdfDoc = await PDFLib.PDFDocument.create();
-        const originalPages = originalPdfDoc.getPages();
-        
-        console.log(`Processing ${originalPages.length} pages`);
-        updateProgress(10);
-        
-        // 2. Copy all pages to new document
-        for (let i = 0; i < originalPages.length; i++) {
-            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
-            const addedPage = newPdfDoc.addPage(copiedPage);
-            
-            // Add GIF animation to selected page
-            if (i === selectedPageIndex) {
-                console.log(`Adding GIF animation to page ${i + 1}`);
-                await addAnimatedGifToPdfPage(newPdfDoc, addedPage, i);
-            }
-            
-            updateProgress(10 + (i + 1) / originalPages.length * 70);
+        // Method 1: Try jsPDF for better JavaScript support
+        if (typeof window.jsPDF !== 'undefined') {
+            console.log('Using jsPDF for enhanced JavaScript support');
+            await generateWithJsPDF();
+        } else {
+            console.log('jsPDF not available, using PDF-lib with enhanced approach');
+            await generateWithPDFLibEnhanced();
         }
         
-        console.log('All pages copied');
-        updateProgress(85);
+    } catch (error) {
+        console.error('PDF generation failed:', error);
+        alert('Error occurred during PDF generation: ' + error.message);
+        hideProcessing();
+    }
+}
+
+// Generate PDF using jsPDF with full JavaScript support
+async function generateWithJsPDF() {
+    try {
+        console.log('Starting jsPDF generation with animation');
         
-        // 3. Set PDF metadata
-        newPdfDoc.setTitle('PDF with Animated GIF');
-        newPdfDoc.setCreator('PDF GIF Generator');
-        newPdfDoc.setProducer('PDF GIF Web App');
-        newPdfDoc.setCreationDate(new Date());
+        // Get original PDF pages as images first
+        const pageImages = [];
+        for (let i = 0; i < pdfPages.length; i++) {
+            const page = pdfPages[i];
+            const viewport = page.getViewport({ scale: 2 }); // High resolution
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+            
+            pageImages.push({
+                canvas: canvas,
+                dataUrl: canvas.toDataURL('image/png'),
+                width: viewport.width,
+                height: viewport.height
+            });
+            
+            updateProgress(10 + (i + 1) / pdfPages.length * 30);
+        }
         
-        // 4. Save PDF
-        console.log('PDF saving started');
-        const pdfBytes = await newPdfDoc.save();
-        updateProgress(95);
+        console.log('All pages converted to images');
+        updateProgress(45);
         
-        // 5. Create download URL
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        // Create new PDF with jsPDF
+        const { jsPDF } = window.jsPDF;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'pt',
+            format: [pageImages[0].width, pageImages[0].height]
+        });
+        
+        // Remove the default first page
+        pdf.deletePage(1);
+        
+        // Add all pages
+        for (let i = 0; i < pageImages.length; i++) {
+            const pageImg = pageImages[i];
+            
+            pdf.addPage([pageImg.width, pageImg.height]);
+            pdf.addImage(pageImg.dataUrl, 'PNG', 0, 0, pageImg.width, pageImg.height);
+            
+            // Add animation to selected page
+            if (i === selectedPageIndex) {
+                console.log(`Adding jsPDF animation to page ${i + 1}`);
+                await addJsPDFAnimation(pdf, i + 1, pageImg.width, pageImg.height);
+            }
+            
+            updateProgress(45 + (i + 1) / pageImages.length * 40);
+        }
+        
+        console.log('jsPDF generation complete');
+        updateProgress(90);
+        
+        // Generate and save
+        const pdfBlob = pdf.output('blob');
         if (generatedPdfUrl) {
             URL.revokeObjectURL(generatedPdfUrl);
         }
-        generatedPdfUrl = URL.createObjectURL(blob);
+        generatedPdfUrl = URL.createObjectURL(pdfBlob);
         
-        console.log('PDF generation complete');
         updateProgress(100);
-        
-        // Show completion screen
         setTimeout(() => {
             hideProcessing();
             showCompletionScreen();
         }, 500);
         
     } catch (error) {
-        console.error('PDF generation failed:', error);
-        console.error('Error stack:', error.stack);
-        alert('Error occurred during PDF generation: ' + error.message);
-        hideProcessing();
+        console.error('jsPDF generation failed:', error);
+        throw error;
     }
+}
+
+// Add animation using jsPDF's JavaScript capabilities
+async function addJsPDFAnimation(pdf, pageNumber, pageWidth, pageHeight) {
+    try {
+        console.log('Adding jsPDF animation to page', pageNumber);
+        
+        // Calculate position in PDF coordinates
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = gifPosition.y * scaleY; // jsPDF uses top-left origin
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        console.log('Animation position:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        
+        // Get animation settings
+        const autoPlay = elements.autoPlay.checked;
+        const frameDelay = parseInt(elements.speedControl.value);
+        
+        // Add each frame as a form field with image
+        const frameFieldNames = [];
+        
+        for (let i = 0; i < gifFrames.length; i++) {
+            const frameFieldName = `animFrame_${pageNumber}_${i}`;
+            frameFieldNames.push(frameFieldName);
+            
+            // Add the frame image
+            pdf.addImage(
+                gifFrames[i].dataUrl,
+                'PNG',
+                pdfX,
+                pdfY,
+                pdfWidth,
+                pdfHeight,
+                `frame_${i}`,
+                'FAST'
+            );
+            
+            // Create form field for this frame
+            pdf.addField({
+                fieldType: 'button',
+                fieldName: frameFieldName,
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+                page: pageNumber
+            });
+        }
+        
+        // Create comprehensive JavaScript for animation
+        const animationJS = `
+// Enhanced PDF Animation Script for Page ${pageNumber}
+console.println("Advanced PDF Animation System Loaded");
+
+var page${pageNumber} = {
+    currentFrame: 0,
+    totalFrames: ${gifFrames.length},
+    frameDelay: ${frameDelay},
+    autoPlay: ${autoPlay},
+    isPlaying: false,
+    animationTimer: null,
+    frameFields: [${frameFieldNames.map(name => `"${name}"`).join(', ')}]
+};
+
+// Core animation functions
+page${pageNumber}.hideAllFrames = function() {
+    console.println("Hiding all frames for page ${pageNumber}");
+    for (var i = 0; i < this.totalFrames; i++) {
+        try {
+            var field = this.getField(this.frameFields[i]);
+            if (field) {
+                field.display = display.hidden;
+                console.println("Hidden frame " + i);
+            }
+        } catch (e) {
+            console.println("Could not hide frame " + i + ": " + e.message);
+        }
+    }
+};
+
+page${pageNumber}.showFrame = function(frameIndex) {
+    console.println("Showing frame " + frameIndex + " for page ${pageNumber}");
+    try {
+        var field = this.getField(this.frameFields[frameIndex]);
+        if (field) {
+            field.display = display.visible;
+            console.println("Successfully showed frame " + frameIndex);
+        }
+    } catch (e) {
+        console.println("Could not show frame " + frameIndex + ": " + e.message);
+    }
+};
+
+page${pageNumber}.nextFrame = function() {
+    console.println("Next frame transition: " + this.currentFrame + " -> " + ((this.currentFrame + 1) % this.totalFrames));
+    
+    // Hide all frames first
+    this.hideAllFrames();
+    
+    // Move to next frame
+    this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
+    
+    // Show new frame
+    this.showFrame(this.currentFrame);
+    
+    // Schedule next frame if playing
+    if (this.isPlaying && this.autoPlay) {
+        var self = this;
+        this.animationTimer = app.setTimeOut(
+            "page${pageNumber}.nextFrame()", 
+            this.frameDelay
+        );
+    }
+};
+
+page${pageNumber}.startAnimation = function() {
+    console.println("Starting animation for page ${pageNumber}");
+    this.isPlaying = true;
+    
+    // Clear any existing timer
+    if (this.animationTimer) {
+        app.clearTimeOut(this.animationTimer);
+    }
+    
+    // Initialize first frame
+    this.hideAllFrames();
+    this.currentFrame = 0;
+    this.showFrame(0);
+    
+    // Start animation loop
+    if (this.totalFrames > 1) {
+        var self = this;
+        this.animationTimer = app.setTimeOut(
+            "page${pageNumber}.nextFrame()", 
+            this.frameDelay
+        );
+    }
+};
+
+page${pageNumber}.stopAnimation = function() {
+    console.println("Stopping animation for page ${pageNumber}");
+    this.isPlaying = false;
+    
+    if (this.animationTimer) {
+        app.clearTimeOut(this.animationTimer);
+        this.animationTimer = null;
+    }
+};
+
+// Initialize animation when page opens
+try {
+    if (page${pageNumber}.autoPlay) {
+        console.println("Auto-starting animation for page ${pageNumber}");
+        app.setTimeOut("page${pageNumber}.startAnimation()", 1000);
+    } else {
+        console.println("Manual mode - showing first frame only");
+        page${pageNumber}.hideAllFrames();
+        page${pageNumber}.showFrame(0);
+    }
+} catch (initError) {
+    console.println("Animation initialization failed: " + initError.message);
+}
+
+// Debug function
+page${pageNumber}.debug = function() {
+    console.println("=== Page ${pageNumber} Animation Debug ===");
+    console.println("Current frame: " + this.currentFrame);
+    console.println("Total frames: " + this.totalFrames);
+    console.println("Is playing: " + this.isPlaying);
+    console.println("Auto play: " + this.autoPlay);
+    console.println("Frame delay: " + this.frameDelay);
+    console.println("Timer active: " + (this.animationTimer !== null));
+    console.println("=====================================");
+};
+`;
+        
+        // Add the JavaScript to PDF
+        pdf.addJS(animationJS);
+        
+        // Add control button if not auto-play
+        if (!autoPlay) {
+            const buttonY = pdfY + pdfHeight + 10;
+            
+            pdf.addField({
+                fieldType: 'button',
+                fieldName: `controlBtn_${pageNumber}`,
+                x: pdfX,
+                y: buttonY,
+                width: Math.min(pdfWidth, 120),
+                height: 30,
+                page: pageNumber,
+                caption: '▶ Play Animation',
+                action: `
+                    if (page${pageNumber}.isPlaying) {
+                        page${pageNumber}.stopAnimation();
+                        this.buttonSetCaption("▶ Play Animation");
+                    } else {
+                        page${pageNumber}.startAnimation();
+                        this.buttonSetCaption("⏸ Stop Animation");
+                    }
+                `
+            });
+        }
+        
+        console.log('jsPDF animation setup complete');
+        
+    } catch (error) {
+        console.error('jsPDF animation setup failed:', error);
+        
+        // Fallback: add first frame as static image
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        pdf.addImage(
+            gifFrames[0].dataUrl,
+            'PNG',
+            gifPosition.x * scaleX,
+            gifPosition.y * scaleY,
+            gifPosition.width * scaleX,
+            gifPosition.height * scaleY
+        );
+        
+        console.log('Added fallback static image');
+    }
+}
+
+// Enhanced PDF-lib generation (fallback)
+async function generateWithPDFLibEnhanced() {
+    console.log('Using enhanced PDF-lib approach');
+    
+    // Use the original PDF-lib method but with improvements
+    const newPdfDoc = await PDFLib.PDFDocument.create();
+    const originalPages = originalPdfDoc.getPages();
+    
+    for (let i = 0; i < originalPages.length; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        const addedPage = newPdfDoc.addPage(copiedPage);
+        
+        if (i === selectedPageIndex) {
+            await addAnimatedGifToPdfPage(newPdfDoc, addedPage, i);
+        }
+        
+        updateProgress(10 + (i + 1) / originalPages.length * 80);
+    }
+    
+    const pdfBytes = await newPdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+    generatedPdfUrl = URL.createObjectURL(blob);
+    
+    updateProgress(100);
+    setTimeout(() => {
+        hideProcessing();
+        showCompletionScreen();
+    }, 500);
 }
 
 // Add animated GIF to PDF page (Real JavaScript Animation)
