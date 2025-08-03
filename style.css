@@ -112,18 +112,26 @@
         box-sizing: border-box;
     }
     
-    /* 입력창 반응형 수정 */
+    /* 컨트롤 패널 반응형 완전 수정 */
+    .controls-panel {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
     .control-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
         gap: 8px;
         width: 100%;
     }
     
     .control-input {
-        width: 100%;
-        box-sizing: border-box;
+        flex: 1;
+        width: 0;
+        min-width: 0;
         padding: 10px 12px;
+        box-sizing: border-box;
     }
     
     .gif-upload-area {
