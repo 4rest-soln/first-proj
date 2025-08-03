@@ -1194,124 +1194,34 @@ async function generateWithPDFLibEnhanced() {
             updateProgress(10 + (i + 1) / originalPages.length * 70);
         }
         
-        // Add document-level JavaScript for OCG control
+        // Add simplified document-level JavaScript
         const globalJS = `
-console.println("PDF OCG Animation System Loaded");
+console.println("PDF Form Field Animation System Ready");
 
-var AnimationController = {
-    currentPage: null,
-    
-    initPage: function(pageNum, totalFrames, frameDelay, autoPlay) {
-        console.println("Initializing page " + pageNum + " with " + totalFrames + " frames");
-        
-        this.currentPage = {
-            pageNum: pageNum,
-            currentFrame: 0,
-            totalFrames: totalFrames,
-            frameDelay: frameDelay,
-            autoPlay: autoPlay,
-            isPlaying: false,
-            timer: null
-        };
-        
-        // Hide all frames except first
-        this.hideAllFrames();
-        this.showFrame(0);
-        
-        // Start auto-play if enabled
-        if (autoPlay && totalFrames > 1) {
-            this.startAnimation();
-        }
-    },
-    
-    hideAllFrames: function() {
-        if (!this.currentPage) return;
-        
-        for (var i = 0; i < this.currentPage.totalFrames; i++) {
-            try {
-                var ocgName = "Frame_" + this.currentPage.pageNum + "_" + i;
-                var ocg = this.getOCG(ocgName);
-                if (ocg) {
-                    ocg.state = false;
-                    console.println("Hidden frame " + i);
-                }
-            } catch (e) {
-                console.println("Could not hide frame " + i + ": " + e);
-            }
-        }
-    },
-    
-    showFrame: function(frameIndex) {
-        if (!this.currentPage) return;
-        
-        try {
-            var ocgName = "Frame_" + this.currentPage.pageNum + "_" + frameIndex;
-            var ocg = this.getOCG(ocgName);
-            if (ocg) {
-                ocg.state = true;
-                console.println("Showed frame " + frameIndex);
-            }
-        } catch (e) {
-            console.println("Could not show frame " + frameIndex + ": " + e);
-        }
-    },
-    
-    nextFrame: function() {
-        if (!this.currentPage) return;
-        
-        console.println("Next frame: " + this.currentPage.currentFrame + " -> " + 
-                       ((this.currentPage.currentFrame + 1) % this.currentPage.totalFrames));
-        
-        this.hideAllFrames();
-        this.currentPage.currentFrame = (this.currentPage.currentFrame + 1) % this.currentPage.totalFrames;
-        this.showFrame(this.currentPage.currentFrame);
-        
-        if (this.currentPage.isPlaying && this.currentPage.autoPlay) {
-            var self = this;
-            this.currentPage.timer = app.setTimeOut(
-                "AnimationController.nextFrame()", 
-                this.currentPage.frameDelay
-            );
-        }
-    },
-    
-    startAnimation: function() {
-        if (!this.currentPage) return;
-        
-        console.println("Starting animation");
-        this.currentPage.isPlaying = true;
-        
-        if (this.currentPage.timer) {
-            app.clearTimeOut(this.currentPage.timer);
-        }
-        
-        if (this.currentPage.totalFrames > 1) {
-            var self = this;
-            this.currentPage.timer = app.setTimeOut(
-                "AnimationController.nextFrame()", 
-                this.currentPage.frameDelay
-            );
-        }
-    },
-    
-    stopAnimation: function() {
-        if (!this.currentPage) return;
-        
-        console.println("Stopping animation");
-        this.currentPage.isPlaying = false;
-        
-        if (this.currentPage.timer) {
-            app.clearTimeOut(this.currentPage.timer);
-            this.currentPage.timer = null;
-        }
+// Global helper functions for debugging
+function debugAnimation() {
+    if (typeof FormFieldAnimation !== 'undefined') {
+        console.println("=== Animation Debug Info ===");
+        console.println("Current frame: " + FormFieldAnimation.currentFrame);
+        console.println("Total frames: " + FormFieldAnimation.totalFrames);
+        console.println("Is playing: " + FormFieldAnimation.isPlaying);
+        console.println("Auto play: " + FormFieldAnimation.autoPlay);
+        console.println("========================");
+    } else {
+        console.println("FormFieldAnimation not initialized yet");
     }
-};
+}
 
-// Initialize when document opens
-app.setTimeOut("AnimationController.initPage(${selectedPageIndex}, ${gifFrames.length}, ${parseInt(elements.speedControl.value)}, ${elements.autoPlay.checked})", 1000);
+// Test function to manually cycle frames
+function testFrameCycle() {
+    if (typeof FormFieldAnimation !== 'undefined') {
+        console.println("Manual frame cycle test");
+        FormFieldAnimation.nextFrame();
+    }
+}
 `;
         
-        newPdfDoc.addJavaScript('OCGAnimation', globalJS);
+        newPdfDoc.addJavaScript('GlobalAnimationSystem', globalJS);
         updateProgress(85);
         
         // Save PDF
@@ -1335,10 +1245,10 @@ app.setTimeOut("AnimationController.initPage(${selectedPageIndex}, ${gifFrames.l
     }
 }
 
-// Add OCG-based animation to page
+// Add form field-based animation (Most reliable approach for Chrome)
 async function addOCGAnimation(pdfDoc, page, pageIndex) {
     try {
-        console.log('Adding OCG-based animation');
+        console.log('Adding form field-based animation for maximum Chrome compatibility');
         
         // Calculate positions
         const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -1350,7 +1260,7 @@ async function addOCGAnimation(pdfDoc, page, pageIndex) {
         const pdfWidth = gifPosition.width * scaleX;
         const pdfHeight = gifPosition.height * scaleY;
         
-        console.log('OCG Animation position:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        console.log('Animation position:', { pdfX, pdfY, pdfWidth, pdfHeight });
         
         if (gifFrames.length === 1) {
             // Single frame - simple static image
@@ -1364,61 +1274,211 @@ async function addOCGAnimation(pdfDoc, page, pageIndex) {
             return true;
         }
         
-        // Multiple frames - create OCG layers
-        console.log(`Creating ${gifFrames.length} OCG layers for animation`);
+        // Multiple frames - create overlapping button fields with images
+        console.log(`Creating ${gifFrames.length} interactive image fields`);
+        
+        const form = pdfDoc.getForm();
+        const frameButtons = [];
         
         for (let i = 0; i < gifFrames.length; i++) {
             try {
-                // Create OCG (Optional Content Group) for this frame
-                const ocgName = `Frame_${pageIndex}_${i}`;
-                
                 // Embed frame image
                 const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
                 
-                // Create content stream for this frame
-                const contentStream = `
-q
-${pdfWidth} 0 0 ${pdfHeight} ${pdfX} ${pdfY} cm
-/Frame${i} Do
-Q
-`;
+                // Create button field for this frame
+                const frameButton = form.createButton(`frame_${pageIndex}_${i}`);
                 
-                // Draw image with OCG marking
-                page.drawImage(embeddedImage, {
+                // Configure button appearance with the frame image
+                frameButton.addToPage(page, {
                     x: pdfX,
                     y: pdfY,
                     width: pdfWidth,
                     height: pdfHeight,
+                    backgroundColor: PDFLib.rgb(1, 1, 1),
+                    borderWidth: 0
                 });
                 
-                console.log(`OCG frame ${i} added successfully`);
+                // Try to set the image as button appearance
+                try {
+                    const buttonWidget = frameButton.acroField.getWidgets()[0];
+                    const appearanceDict = pdfDoc.context.obj({});
+                    const normalDict = pdfDoc.context.obj({});
+                    
+                    // Create XObject for the frame image
+                    const imageXObject = pdfDoc.context.flateStream(
+                        embeddedImage.embedder.embedIntoContext(pdfDoc.context, embeddedImage.ref).data
+                    );
+                    
+                    const xObjectRef = pdfDoc.context.register(imageXObject);
+                    normalDict.set(PDFLib.PDFName.of('N'), xObjectRef);
+                    appearanceDict.set(PDFLib.PDFName.of('D'), normalDict);
+                    buttonWidget.dict.set(PDFLib.PDFName.of('AP'), appearanceDict);
+                    
+                    console.log(`Frame ${i} appearance set successfully`);
+                } catch (appearanceError) {
+                    console.log(`Frame ${i} appearance setting failed:`, appearanceError.message);
+                    
+                    // Fallback: draw image directly on page for first frame
+                    if (i === 0) {
+                        page.drawImage(embeddedImage, {
+                            x: pdfX,
+                            y: pdfY,
+                            width: pdfWidth,
+                            height: pdfHeight,
+                        });
+                    }
+                }
+                
+                frameButtons.push(frameButton);
+                
+                // Set visibility - show only first frame initially
+                if (i > 0) {
+                    try {
+                        frameButton.setHidden(true);
+                    } catch (hideError) {
+                        console.log(`Could not hide frame ${i}`);
+                    }
+                }
                 
             } catch (frameError) {
-                console.error(`Failed to add OCG frame ${i}:`, frameError);
-                
-                // Fallback: just draw the image normally
-                if (i === 0) {
-                    const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
-                    page.drawImage(embeddedImage, {
-                        x: pdfX,
-                        y: pdfY,
-                        width: pdfWidth,
-                        height: pdfHeight,
-                    });
-                }
+                console.error(`Failed to create frame ${i}:`, frameError);
+                continue;
             }
         }
         
-        // Add manual control button (fixed encoding issue)
-        const form = pdfDoc.getForm();
+        // Create enhanced animation controller JavaScript
+        const animationJS = `
+console.println("Enhanced Form Field Animation System Loaded");
+
+var FormFieldAnimation = {
+    pageIndex: ${pageIndex},
+    currentFrame: 0,
+    totalFrames: ${gifFrames.length},
+    frameDelay: ${parseInt(elements.speedControl.value)},
+    autoPlay: ${elements.autoPlay.checked},
+    isPlaying: false,
+    animationTimer: null,
+    
+    init: function() {
+        console.println("Initializing FormField animation for page " + this.pageIndex);
+        this.hideAllFrames();
+        this.showFrame(0);
+        
+        if (this.autoPlay && this.totalFrames > 1) {
+            this.startAnimation();
+        }
+    },
+    
+    hideAllFrames: function() {
+        console.println("Hiding all frames");
+        for (var i = 0; i < this.totalFrames; i++) {
+            try {
+                var fieldName = "frame_" + this.pageIndex + "_" + i;
+                var field = this.getField(fieldName);
+                if (field) {
+                    field.hidden = true;
+                    field.display = display.hidden;
+                    console.println("Hidden field: " + fieldName);
+                }
+            } catch (e) {
+                console.println("Could not hide frame " + i + ": " + e.message);
+            }
+        }
+    },
+    
+    showFrame: function(frameIndex) {
+        console.println("Showing frame " + frameIndex);
+        try {
+            var fieldName = "frame_" + this.pageIndex + "_" + frameIndex;
+            var field = this.getField(fieldName);
+            if (field) {
+                field.hidden = false;
+                field.display = display.visible;
+                console.println("Showed field: " + fieldName);
+                return true;
+            }
+        } catch (e) {
+            console.println("Could not show frame " + frameIndex + ": " + e.message);
+        }
+        return false;
+    },
+    
+    nextFrame: function() {
+        var oldFrame = this.currentFrame;
+        this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
+        
+        console.println("Frame transition: " + oldFrame + " -> " + this.currentFrame);
+        
+        this.hideAllFrames();
+        
+        // Small delay to ensure hiding completes
+        var self = this;
+        app.setTimeOut(function() {
+            self.showFrame(self.currentFrame);
+            
+            if (self.isPlaying && self.autoPlay && self.totalFrames > 1) {
+                self.animationTimer = app.setTimeOut(function() {
+                    self.nextFrame();
+                }, self.frameDelay);
+            }
+        }, 50);
+    },
+    
+    startAnimation: function() {
+        console.println("Starting animation");
+        this.isPlaying = true;
+        
+        if (this.animationTimer) {
+            app.clearTimeOut(this.animationTimer);
+        }
+        
+        if (this.totalFrames > 1) {
+            var self = this;
+            this.animationTimer = app.setTimeOut(function() {
+                self.nextFrame();
+            }, this.frameDelay);
+        }
+    },
+    
+    stopAnimation: function() {
+        console.println("Stopping animation");
+        this.isPlaying = false;
+        
+        if (this.animationTimer) {
+            app.clearTimeOut(this.animationTimer);
+            this.animationTimer = null;
+        }
+    },
+    
+    toggleAnimation: function() {
+        if (this.isPlaying) {
+            this.stopAnimation();
+            return "Play Animation";
+        } else {
+            this.startAnimation();
+            return "Stop Animation";
+        }
+    }
+};
+
+// Initialize the animation system
+app.setTimeOut(function() {
+    FormFieldAnimation.init();
+}, 1000);
+`;
+        
+        // Add the JavaScript to PDF
+        pdfDoc.addJavaScript('FormFieldAnimation', animationJS);
+        
+        // Create control button with enhanced action
         const controlBtn = form.createButton(`animControl_${pageIndex}`);
         
         controlBtn.addToPage('Play Animation', page, {
             x: pdfX,
-            y: pdfY - 35,
-            width: Math.min(pdfWidth, 140),
-            height: 25,
-            fontSize: 10,
+            y: pdfY - 40,
+            width: Math.min(pdfWidth, 120),
+            height: 30,
+            fontSize: 12,
             backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
             borderColor: PDFLib.rgb(0.1, 0.2, 0.6),
             borderWidth: 1
@@ -1427,24 +1487,22 @@ Q
         try {
             controlBtn.setAction(
                 PDFLib.PDFAction.createJavaScript(`
-                    if (AnimationController.currentPage && AnimationController.currentPage.isPlaying) {
-                        AnimationController.stopAnimation();
-                    } else {
-                        AnimationController.startAnimation();
-                    }
+                    var newCaption = FormFieldAnimation.toggleAnimation();
+                    this.buttonSetCaption(newCaption);
                 `)
             );
+            console.log('Control button action set successfully');
         } catch (actionError) {
-            console.log('Button action failed:', actionError.message);
+            console.log('Control button action failed:', actionError.message);
         }
         
-        console.log('OCG animation setup complete');
+        console.log('Form field animation setup complete');
         return true;
         
     } catch (error) {
-        console.error('OCG animation failed:', error);
+        console.error('Form field animation failed:', error);
         
-        // Ultimate fallback
+        // Ultimate fallback - just show first frame
         try {
             const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
             const pageSize = page.getSize();
@@ -1458,7 +1516,7 @@ Q
                 height: gifPosition.height * scaleY,
             });
             
-            console.log('Ultimate fallback image added');
+            console.log('Ultimate fallback: static first frame added');
         } catch (fallbackError) {
             console.error('Even ultimate fallback failed:', fallbackError);
         }
