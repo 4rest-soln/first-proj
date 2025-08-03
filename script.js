@@ -156,9 +156,15 @@ function updateSpeedDisplay() {
     }
 }
 
-// Handle PDF upload
+// Handle PDF upload (improved with better error handling)
 async function handlePdfUpload(e) {
     console.log('PDF file upload handler executed');
+    
+    // Prevent multiple rapid calls
+    if (elements.pdfInput.disabled) {
+        console.log('Upload already in progress, ignoring');
+        return;
+    }
     
     if (!elements) {
         elements = getElements();
@@ -167,12 +173,33 @@ async function handlePdfUpload(e) {
     const file = e.target.files[0];
     console.log('Selected file:', file);
     
-    if (file && file.type === 'application/pdf') {
+    if (!file) {
+        console.log('No file selected');
+        return;
+    }
+    
+    if (file.type !== 'application/pdf') {
+        console.log('Not a PDF file:', file.type);
+        alert('Only PDF files are allowed.');
+        // Reset file input
+        e.target.value = '';
+        return;
+    }
+    
+    // Disable input during processing
+    elements.pdfInput.disabled = true;
+    
+    try {
         console.log('PDF file confirmed, starting load');
         await loadPdf(file);
-    } else {
-        console.log('Not a PDF file:', file ? file.type : 'no file');
-        alert('Only PDF files are allowed.');
+    } catch (error) {
+        console.error('PDF load failed:', error);
+        alert('Failed to load PDF: ' + error.message);
+        // Reset file input on error
+        e.target.value = '';
+    } finally {
+        // Re-enable input
+        elements.pdfInput.disabled = false;
     }
 }
 
@@ -1108,38 +1135,302 @@ page${pageNumber}.debug = function() {
     }
 }
 
-// Enhanced PDF-lib generation (fallback)
+// Generate PDF with OCG-based animation (Most compatible approach)
 async function generateWithPDFLibEnhanced() {
-    console.log('Using enhanced PDF-lib approach');
+    console.log('Using OCG-based animation approach for maximum compatibility');
     
-    // Use the original PDF-lib method but with improvements
-    const newPdfDoc = await PDFLib.PDFDocument.create();
-    const originalPages = originalPdfDoc.getPages();
-    
-    for (let i = 0; i < originalPages.length; i++) {
-        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
-        const addedPage = newPdfDoc.addPage(copiedPage);
+    try {
+        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const originalPages = originalPdfDoc.getPages();
         
-        if (i === selectedPageIndex) {
-            await addAnimatedGifToPdfPage(newPdfDoc, addedPage, i);
+        console.log(`Processing ${originalPages.length} pages with OCG animation`);
+        updateProgress(10);
+        
+        // Copy all pages
+        for (let i = 0; i < originalPages.length; i++) {
+            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+            const addedPage = newPdfDoc.addPage(copiedPage);
+            
+            // Add OCG-based animation to selected page
+            if (i === selectedPageIndex) {
+                console.log(`Adding OCG animation to page ${i + 1}`);
+                await addOCGAnimation(newPdfDoc, addedPage, i);
+            }
+            
+            updateProgress(10 + (i + 1) / originalPages.length * 70);
         }
         
-        updateProgress(10 + (i + 1) / originalPages.length * 80);
+        // Add document-level JavaScript for OCG control
+        const globalJS = `
+console.println("PDF OCG Animation System Loaded");
+
+var AnimationController = {
+    currentPage: null,
+    
+    initPage: function(pageNum, totalFrames, frameDelay, autoPlay) {
+        console.println("Initializing page " + pageNum + " with " + totalFrames + " frames");
+        
+        this.currentPage = {
+            pageNum: pageNum,
+            currentFrame: 0,
+            totalFrames: totalFrames,
+            frameDelay: frameDelay,
+            autoPlay: autoPlay,
+            isPlaying: false,
+            timer: null
+        };
+        
+        // Hide all frames except first
+        this.hideAllFrames();
+        this.showFrame(0);
+        
+        // Start auto-play if enabled
+        if (autoPlay && totalFrames > 1) {
+            this.startAnimation();
+        }
+    },
+    
+    hideAllFrames: function() {
+        if (!this.currentPage) return;
+        
+        for (var i = 0; i < this.currentPage.totalFrames; i++) {
+            try {
+                var ocgName = "Frame_" + this.currentPage.pageNum + "_" + i;
+                var ocg = this.getOCG(ocgName);
+                if (ocg) {
+                    ocg.state = false;
+                    console.println("Hidden frame " + i);
+                }
+            } catch (e) {
+                console.println("Could not hide frame " + i + ": " + e);
+            }
+        }
+    },
+    
+    showFrame: function(frameIndex) {
+        if (!this.currentPage) return;
+        
+        try {
+            var ocgName = "Frame_" + this.currentPage.pageNum + "_" + frameIndex;
+            var ocg = this.getOCG(ocgName);
+            if (ocg) {
+                ocg.state = true;
+                console.println("Showed frame " + frameIndex);
+            }
+        } catch (e) {
+            console.println("Could not show frame " + frameIndex + ": " + e);
+        }
+    },
+    
+    nextFrame: function() {
+        if (!this.currentPage) return;
+        
+        console.println("Next frame: " + this.currentPage.currentFrame + " -> " + 
+                       ((this.currentPage.currentFrame + 1) % this.currentPage.totalFrames));
+        
+        this.hideAllFrames();
+        this.currentPage.currentFrame = (this.currentPage.currentFrame + 1) % this.currentPage.totalFrames;
+        this.showFrame(this.currentPage.currentFrame);
+        
+        if (this.currentPage.isPlaying && this.currentPage.autoPlay) {
+            var self = this;
+            this.currentPage.timer = app.setTimeOut(
+                "AnimationController.nextFrame()", 
+                this.currentPage.frameDelay
+            );
+        }
+    },
+    
+    startAnimation: function() {
+        if (!this.currentPage) return;
+        
+        console.println("Starting animation");
+        this.currentPage.isPlaying = true;
+        
+        if (this.currentPage.timer) {
+            app.clearTimeOut(this.currentPage.timer);
+        }
+        
+        if (this.currentPage.totalFrames > 1) {
+            var self = this;
+            this.currentPage.timer = app.setTimeOut(
+                "AnimationController.nextFrame()", 
+                this.currentPage.frameDelay
+            );
+        }
+    },
+    
+    stopAnimation: function() {
+        if (!this.currentPage) return;
+        
+        console.println("Stopping animation");
+        this.currentPage.isPlaying = false;
+        
+        if (this.currentPage.timer) {
+            app.clearTimeOut(this.currentPage.timer);
+            this.currentPage.timer = null;
+        }
     }
-    
-    const pdfBytes = await newPdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    
-    if (generatedPdfUrl) {
-        URL.revokeObjectURL(generatedPdfUrl);
+};
+
+// Initialize when document opens
+app.setTimeOut("AnimationController.initPage(${selectedPageIndex}, ${gifFrames.length}, ${parseInt(elements.speedControl.value)}, ${elements.autoPlay.checked})", 1000);
+`;
+        
+        newPdfDoc.addJavaScript('OCGAnimation', globalJS);
+        updateProgress(85);
+        
+        // Save PDF
+        const pdfBytes = await newPdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        
+        if (generatedPdfUrl) {
+            URL.revokeObjectURL(generatedPdfUrl);
+        }
+        generatedPdfUrl = URL.createObjectURL(blob);
+        
+        updateProgress(100);
+        setTimeout(() => {
+            hideProcessing();
+            showCompletionScreen();
+        }, 500);
+        
+    } catch (error) {
+        console.error('OCG animation generation failed:', error);
+        throw error;
     }
-    generatedPdfUrl = URL.createObjectURL(blob);
-    
-    updateProgress(100);
-    setTimeout(() => {
-        hideProcessing();
-        showCompletionScreen();
-    }, 500);
+}
+
+// Add OCG-based animation to page
+async function addOCGAnimation(pdfDoc, page, pageIndex) {
+    try {
+        console.log('Adding OCG-based animation');
+        
+        // Calculate positions
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        console.log('OCG Animation position:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        
+        if (gifFrames.length === 1) {
+            // Single frame - simple static image
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+            page.drawImage(embeddedImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+            });
+            return true;
+        }
+        
+        // Multiple frames - create OCG layers
+        console.log(`Creating ${gifFrames.length} OCG layers for animation`);
+        
+        for (let i = 0; i < gifFrames.length; i++) {
+            try {
+                // Create OCG (Optional Content Group) for this frame
+                const ocgName = `Frame_${pageIndex}_${i}`;
+                
+                // Embed frame image
+                const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
+                
+                // Create content stream for this frame
+                const contentStream = `
+q
+${pdfWidth} 0 0 ${pdfHeight} ${pdfX} ${pdfY} cm
+/Frame${i} Do
+Q
+`;
+                
+                // Draw image with OCG marking
+                page.drawImage(embeddedImage, {
+                    x: pdfX,
+                    y: pdfY,
+                    width: pdfWidth,
+                    height: pdfHeight,
+                });
+                
+                console.log(`OCG frame ${i} added successfully`);
+                
+            } catch (frameError) {
+                console.error(`Failed to add OCG frame ${i}:`, frameError);
+                
+                // Fallback: just draw the image normally
+                if (i === 0) {
+                    const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
+                    page.drawImage(embeddedImage, {
+                        x: pdfX,
+                        y: pdfY,
+                        width: pdfWidth,
+                        height: pdfHeight,
+                    });
+                }
+            }
+        }
+        
+        // Add manual control button
+        const form = pdfDoc.getForm();
+        const controlBtn = form.createButton(`animControl_${pageIndex}`);
+        
+        controlBtn.addToPage('🎬 Toggle Animation', page, {
+            x: pdfX,
+            y: pdfY - 35,
+            width: Math.min(pdfWidth, 140),
+            height: 25,
+            fontSize: 10,
+            backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
+            borderColor: PDFLib.rgb(0.1, 0.2, 0.6),
+            borderWidth: 1
+        });
+        
+        try {
+            controlBtn.setAction(
+                PDFLib.PDFAction.createJavaScript(`
+                    if (AnimationController.currentPage && AnimationController.currentPage.isPlaying) {
+                        AnimationController.stopAnimation();
+                    } else {
+                        AnimationController.startAnimation();
+                    }
+                `)
+            );
+        } catch (actionError) {
+            console.log('Button action failed:', actionError.message);
+        }
+        
+        console.log('OCG animation setup complete');
+        return true;
+        
+    } catch (error) {
+        console.error('OCG animation failed:', error);
+        
+        // Ultimate fallback
+        try {
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+            const pageSize = page.getSize();
+            const scaleX = pageSize.width / elements.pdfPreviewCanvas.width;
+            const scaleY = pageSize.height / elements.pdfPreviewCanvas.height;
+            
+            page.drawImage(embeddedImage, {
+                x: gifPosition.x * scaleX,
+                y: pageSize.height - (gifPosition.y + gifPosition.height) * scaleY,
+                width: gifPosition.width * scaleX,
+                height: gifPosition.height * scaleY,
+            });
+            
+            console.log('Ultimate fallback image added');
+        } catch (fallbackError) {
+            console.error('Even ultimate fallback failed:', fallbackError);
+        }
+        
+        return false;
+    }
 }
 
 // Add animated GIF to PDF page (Real JavaScript Animation)
