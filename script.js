@@ -1223,24 +1223,25 @@ try {
 
 function createGlobalJavaScript() {
     return `
-// === PDF 애니메이션 전역 시스템 ===
-console.println("PDF 애니메이션 전역 시스템 로드됨");
+// === 단순화된 PDF 애니메이션 전역 시스템 ===
+console.println("PDF 애니메이션 전역 시스템 로드됨 - 단순화 버전");
 
 // 전역 유틸리티 함수
 function debugAllAnimations() {
-    console.println("=== 애니메이션 디버그 정보 ===");
+    console.println("=== 단순 애니메이션 디버그 정보 ===");
     
     // 사용 가능한 애니메이션 시스템 찾기
     var found = false;
     for (var i = 0; i < 10; i++) {
         try {
-            var animSystem = eval("AnimationSystem_" + i);
+            var animSystem = eval("SimpleAnim_" + i);
             if (animSystem) {
-                console.println("페이지 " + i + " 애니메이션:");
+                console.println("페이지 " + i + " 단순 애니메이션:");
                 console.println("  - 현재 프레임: " + animSystem.currentFrame);
                 console.println("  - 총 프레임: " + animSystem.totalFrames);
                 console.println("  - 실행 중: " + animSystem.isRunning);
                 console.println("  - 자동재생: " + animSystem.autoPlay);
+                console.println("  - 필드 수: " + animSystem.fieldNames.length);
                 found = true;
             }
         } catch (e) {
@@ -1255,8 +1256,24 @@ function debugAllAnimations() {
     console.println("==========================");
 }
 
-// PDF 열기 시 실행
-console.println("Chrome PDF 뷰어에서 애니메이션이 활성화됩니다");
+// 수동 애니메이션 테스트 함수
+function testAnimation(pageIndex) {
+    try {
+        var animSystem = eval("SimpleAnim_" + pageIndex);
+        if (animSystem) {
+            console.println("페이지 " + pageIndex + " 애니메이션 테스트");
+            animSystem.nextFrame();
+        } else {
+            console.println("페이지 " + pageIndex + " 애니메이션을 찾을 수 없음");
+        }
+    } catch (e) {
+        console.println("애니메이션 테스트 실패: " + e.message);
+    }
+}
+
+// PDF 로드 완료 시 실행
+console.println("Chrome PDF 뷰어에서 단순화된 애니메이션이 활성화됩니다");
+console.println("체크박스 필드를 사용한 프레임 전환 방식");
 `;
 }
 
