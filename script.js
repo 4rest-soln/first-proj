@@ -782,20 +782,65 @@ async function generateAdvancedPdf() {
         return;
     }
     
-    showProcessing('새로운 방식으로 PDF 생성 중...', '폼 필드 없이 순수 이미지 기반 애니메이션 생성');
-    addProcessingStep('새로운 PDF 생성 방식 시작');
+    showProcessing('올바른 방식으로 PDF 생성 중...', '한 페이지에서 필드 겹치기 방식으로 애니메이션 생성');
+    addProcessingStep('올바른 PDF 생성 방식 시작');
     updateProgress(5);
     updateStep(4);
     
     try {
-        console.log('=== 폼 필드 없는 PDF 생성 시작 ===');
+        console.log('=== 올바른 단일 페이지 애니메이션 PDF 생성 시작 ===');
         
-        // 방법 1: 각 프레임을 별도 페이지로 생성하는 방식
-        if (gifFrames.length > 1) {
-            await generateMultiPageAnimation();
-        } else {
-            await generateSingleFramePdf();
+        // 새 PDF 문서 생성
+        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const originalPages = originalPdfDoc.getPages();
+        
+        addProcessingStep('원본 페이지들 복사 중...');
+        updateProgress(15);
+        
+        // 모든 페이지 복사 (원본 구조 유지)
+        for (let i = 0; i < originalPages.length; i++) {
+            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+            const addedPage = newPdfDoc.addPage(copiedPage);
+            
+            // 선택된 페이지에만 애니메이션 추가
+            if (i === selectedPageIndex) {
+                console.log(`페이지 ${i + 1}에 단일 페이지 애니메이션 추가`);
+                addProcessingStep(`페이지 ${i + 1}에 겹침 필드 애니메이션 추가`);
+                await addOverlappingFieldAnimation(newPdfDoc, addedPage, i);
+            }
+            
+            const progress = 15 + ((i + 1) / originalPages.length) * 60;
+            updateProgress(progress);
         }
+        
+        addProcessingStep('애니메이션 JavaScript 추가 중...');
+        updateProgress(80);
+        
+        // 애니메이션 제어 JavaScript 추가
+        const controlJS = createOverlappingFieldJavaScript(selectedPageIndex, gifFrames.length);
+        newPdfDoc.addJavaScript('OverlappingFieldAnimation', controlJS);
+        
+        addProcessingStep('PDF 파일 생성 중...');
+        updateProgress(90);
+        
+        // PDF 저장
+        const pdfBytes = await newPdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        
+        if (generatedPdfUrl) {
+            URL.revokeObjectURL(generatedPdfUrl);
+        }
+        generatedPdfUrl = URL.createObjectURL(blob);
+        
+        addProcessingStep('단일 페이지 애니메이션 PDF 생성 완료!');
+        updateProgress(100);
+        
+        setTimeout(() => {
+            hideProcessing();
+            showCompletionScreen();
+        }, 1000);
+        
+        console.log('단일 페이지 애니메이션 PDF 생성 완료');
         
     } catch (error) {
         console.error('PDF 생성 실패:', error);
@@ -803,6 +848,337 @@ async function generateAdvancedPdf() {
         alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
         hideProcessing();
     }
+}
+
+async function addOverlappingFieldAnimation(pdfDoc, page, pageIndex) {
+    try {
+        console.log('겹침 필드 애니메이션 추가');
+        
+        // 페이지 크기 및 좌표 계산
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        // PDF 좌표계로 변환
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        console.log('애니메이션 위치:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        
+        // 단일 프레임 처리
+        if (gifFrames.length === 1) {
+            console.log('단일 프레임 이미지 추가');
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+            page.drawImage(embeddedImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+            });
+            return true;
+        }
+        
+        // 멀티 프레임 애니메이션 - 이미지를 페이지에 직접 그린 후 필드로 덮기
+        console.log(`${gifFrames.length}개 프레임 겹침 필드 애니메이션 설정`);
+        
+        // 모든 프레임 이미지를 페이지에 직접 그리기 (겹쳐서)
+        const embeddedImages = [];
+        for (let i = 0; i < gifFrames.length; i++) {
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
+            embeddedImages.push(embeddedImage);
+            
+            // 모든 프레임을 같은 위치에 그리기
+            page.drawImage(embeddedImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+            });
+        }
+        
+        // 투명한 사각형 필드들을 각 이미지 위에 생성 (덮개 역할)
+        const form = pdfDoc.getForm();
+        const fieldNames = [];
+        
+        for (let i = 0; i < embeddedImages.length; i++) {
+            const fieldName = `cover_${pageIndex}_${i}`;
+            fieldNames.push(fieldName);
+            
+            try {
+                // PDF-lib 버전 호환성을 위한 안전한 버튼 필드 생성
+                const rect = PDFLib.PDFRectangle.of(pdfX, pdfY, pdfX + pdfWidth, pdfY + pdfHeight);
+                
+                // 직접 PDF 딕셔너리 조작으로 필드 생성 (addToPage 사용 안 함)
+                const buttonDict = pdfDoc.context.obj({
+                    Type: 'Annot',
+                    Subtype: 'Widget',
+                    FT: 'Btn',
+                    T: PDFLib.PDFString.of(fieldName),
+                    Rect: [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height],
+                    F: 4, // Print flag
+                    Ff: 65536, // PushButton flag
+                    BS: pdfDoc.context.obj({
+                        Type: 'Border',
+                        W: 0 // 테두리 없음
+                    }),
+                    BG: [1, 1, 1, 0], // 투명 배경
+                    AP: pdfDoc.context.obj({
+                        N: pdfDoc.context.obj({
+                            Type: 'XObject',
+                            Subtype: 'Form',
+                            BBox: [0, 0, rect.width, rect.height],
+                            Matrix: [1, 0, 0, 1, 0, 0]
+                        })
+                    })
+                });
+                
+                // 첫 번째 프레임 외에는 숨김 처리
+                if (i > 0) {
+                    buttonDict.set(PDFLib.PDFName.of('F'), PDFLib.PDFNumber.of(6)); // Hidden + Print
+                }
+                
+                // 페이지에 필드 추가
+                const buttonRef = pdfDoc.context.register(buttonDict);
+                const pageDict = page.node;
+                const annots = pageDict.lookup(PDFLib.PDFName.of('Annots'), PDFLib.PDFArray) || pdfDoc.context.obj([]);
+                annots.push(buttonRef);
+                pageDict.set(PDFLib.PDFName.of('Annots'), annots);
+                
+                // 폼에 필드 등록
+                const acroForm = pdfDoc.catalog.lookup(PDFLib.PDFName.of('AcroForm'));
+                if (acroForm) {
+                    const fields = acroForm.lookup(PDFLib.PDFName.of('Fields'), PDFLib.PDFArray) || pdfDoc.context.obj([]);
+                    fields.push(buttonRef);
+                    acroForm.set(PDFLib.PDFName.of('Fields'), fields);
+                }
+                
+                console.log(`커버 필드 ${i} 생성 완료: ${fieldName}`);
+                
+            } catch (fieldError) {
+                console.error(`커버 필드 ${i} 생성 실패:`, fieldError);
+                
+                // 폴백: 주석으로 마킹
+                try {
+                    const annotDict = pdfDoc.context.obj({
+                        Type: 'Annot',
+                        Subtype: 'Square',
+                        Rect: [pdfX, pdfY, pdfX + pdfWidth, pdfY + pdfHeight],
+                        T: PDFLib.PDFString.of(fieldName),
+                        F: i === 0 ? 4 : 6, // 첫 번째만 보이기
+                        C: [0, 0, 0, 0], // 투명
+                        IC: [0, 0, 0, 0] // 투명 내부
+                    });
+                    
+                    const annotRef = pdfDoc.context.register(annotDict);
+                    const pageDict = page.node;
+                    const annots = pageDict.lookup(PDFLib.PDFName.of('Annots'), PDFLib.PDFArray) || pdfDoc.context.obj([]);
+                    annots.push(annotRef);
+                    pageDict.set(PDFLib.PDFName.of('Annots'), annots);
+                    
+                    console.log(`폴백 주석 ${i} 생성`);
+                    
+                } catch (annotError) {
+                    console.error(`주석 폴백도 실패:`, annotError);
+                }
+            }
+        }
+        
+        console.log('겹침 필드 애니메이션 설정 완료');
+        return { success: true, fieldNames };
+        
+    } catch (error) {
+        console.error('겹침 필드 애니메이션 추가 실패:', error);
+        
+        // 완전한 폴백: 첫 번째 프레임만 이미지로 추가
+        try {
+            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+            const pageSize = page.getSize();
+            const scaleX = pageSize.width / elements.pdfPreviewCanvas.width;
+            const scaleY = pageSize.height / elements.pdfPreviewCanvas.height;
+            
+            page.drawImage(embeddedImage, {
+                x: gifPosition.x * scaleX,
+                y: pageSize.height - (gifPosition.y + gifPosition.height) * scaleY,
+                width: gifPosition.width * scaleX,
+                height: gifPosition.height * scaleY,
+            });
+            
+            console.log('완전 폴백: 정적 이미지만 추가');
+            return { success: false, fallback: true };
+            
+        } catch (fallbackError) {
+            console.error('완전 폴백도 실패:', fallbackError);
+            return { success: false, fallback: false };
+        }
+    }
+}
+
+function createOverlappingFieldJavaScript(pageIndex, frameCount) {
+    const autoPlay = elements.autoPlay?.checked !== false;
+    const frameDelay = parseInt(elements.speedControl?.value || 500);
+    
+    return `
+// === 겹침 필드 기반 애니메이션 시스템 ===
+console.println("겹침 필드 애니메이션 시스템 로드됨 - 페이지 ${pageIndex}");
+
+var OverlapAnimation_${pageIndex} = {
+    pageIndex: ${pageIndex},
+    currentFrame: 0,
+    totalFrames: ${frameCount},
+    frameDelay: ${frameDelay},
+    autoPlay: ${autoPlay},
+    isRunning: false,
+    timer: null,
+    
+    // 안전한 필드 접근
+    getFieldSafely: function(fieldName) {
+        try {
+            return this.getField(fieldName);
+        } catch (e) {
+            console.println("필드 접근 실패: " + fieldName);
+            return null;
+        }
+    },
+    
+    // 모든 커버 필드 숨기기
+    hideAllCovers: function() {
+        for (var i = 0; i < this.totalFrames; i++) {
+            try {
+                var fieldName = "cover_${pageIndex}_" + i;
+                var field = this.getFieldSafely(fieldName);
+                if (field) {
+                    field.display = display.hidden;
+                }
+            } catch (e) {
+                console.println("커버 " + i + " 숨김 실패: " + e.message);
+            }
+        }
+    },
+    
+    // 특정 커버 필드만 표시 (해당 프레임 보이기)
+    showCover: function(frameIndex) {
+        try {
+            var fieldName = "cover_${pageIndex}_" + frameIndex;
+            var field = this.getFieldSafely(fieldName);
+            if (field) {
+                field.display = display.visible;
+                console.println("프레임 " + frameIndex + " 표시됨 (커버 숨김)");
+            }
+        } catch (e) {
+            console.println("커버 " + frameIndex + " 표시 실패: " + e.message);
+        }
+    },
+    
+    // 다음 프레임으로 전환
+    nextFrame: function() {
+        console.println("프레임 전환: " + this.currentFrame + " -> " + ((this.currentFrame + 1) % this.totalFrames));
+        
+        // 모든 커버 숨기고 (모든 이미지 보이기)
+        this.hideAllCovers();
+        
+        // 다음 프레임으로
+        this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
+        
+        // 현재 프레임만 커버로 가리기 (다른 프레임들은 보이게)
+        for (var i = 0; i < this.totalFrames; i++) {
+            if (i !== this.currentFrame) {
+                this.showCover(i);
+            }
+        }
+        
+        // 계속 실행
+        if (this.isRunning && this.autoPlay) {
+            var self = this;
+            try {
+                this.timer = app.setTimeOut(function() { 
+                    self.nextFrame(); 
+                }, this.frameDelay);
+            } catch (timerError) {
+                console.println("타이머 설정 실패: " + timerError.message);
+                this.isRunning = false;
+            }
+        }
+    },
+    
+    // 애니메이션 시작
+    start: function() {
+        console.println("겹침 필드 애니메이션 시작");
+        this.isRunning = true;
+        
+        if (this.timer) {
+            try { app.clearTimeOut(this.timer); } catch (e) {}
+            this.timer = null;
+        }
+        
+        // 첫 번째 프레임 표시 (다른 모든 커버 표시)
+        this.hideAllCovers();
+        for (var i = 1; i < this.totalFrames; i++) {
+            this.showCover(i);
+        }
+        this.currentFrame = 0;
+        
+        if (this.totalFrames > 1) {
+            var self = this;
+            try {
+                this.timer = app.setTimeOut(function() { 
+                    self.nextFrame(); 
+                }, this.frameDelay);
+            } catch (e) {
+                console.println("시작 타이머 실패: " + e.message);
+                this.isRunning = false;
+            }
+        }
+    },
+    
+    // 애니메이션 정지
+    stop: function() {
+        console.println("겹침 필드 애니메이션 정지");
+        this.isRunning = false;
+        
+        if (this.timer) {
+            try { app.clearTimeOut(this.timer); } catch (e) {}
+            this.timer = null;
+        }
+    },
+    
+    // 초기화
+    init: function() {
+        console.println("겹침 필드 애니메이션 초기화");
+        
+        // 첫 번째 프레임만 보이도록 설정
+        this.hideAllCovers();
+        for (var i = 1; i < this.totalFrames; i++) {
+            this.showCover(i);
+        }
+        this.currentFrame = 0;
+        
+        // 자동재생
+        if (this.autoPlay && this.totalFrames > 1) {
+            var self = this;
+            try {
+                app.setTimeOut(function() { 
+                    self.start(); 
+                }, 2000);
+            } catch (e) {
+                console.println("자동재생 시작 실패: " + e.message);
+            }
+        }
+    }
+};
+
+// 자동 초기화
+try {
+    app.setTimeOut(function() {
+        OverlapAnimation_${pageIndex}.init();
+    }, 1500);
+} catch (e) {
+    console.println("초기화 스케줄링 실패: " + e.message);
+}
+
+console.println("겹침 필드 애니메이션 준비 완료 - ${frameCount}개 프레임");
+`;
 }
 
 async function generateMultiPageAnimation() {
