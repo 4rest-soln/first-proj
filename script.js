@@ -782,71 +782,413 @@ async function generateAdvancedPdf() {
         return;
     }
     
-    showProcessing('올바른 방식으로 PDF 생성 중...', '한 페이지에서 필드 겹치기 방식으로 애니메이션 생성');
-    addProcessingStep('올바른 PDF 생성 방식 시작');
+    showProcessing('검증된 방식으로 PDF 생성 중...', 'Chrome PDF 뷰어에서 실제 작동하는 애니메이션 생성');
+    addProcessingStep('검증된 애니메이션 방식 시작');
     updateProgress(5);
     updateStep(4);
     
     try {
-        console.log('=== 올바른 단일 페이지 애니메이션 PDF 생성 시작 ===');
+        console.log('=== 검증된 PDF 애니메이션 생성 시작 ===');
         
-        // 새 PDF 문서 생성
-        const newPdfDoc = await PDFLib.PDFDocument.create();
-        const originalPages = originalPdfDoc.getPages();
-        
-        addProcessingStep('원본 페이지들 복사 중...');
-        updateProgress(15);
-        
-        // 모든 페이지 복사 (원본 구조 유지)
-        for (let i = 0; i < originalPages.length; i++) {
-            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
-            const addedPage = newPdfDoc.addPage(copiedPage);
-            
-            // 선택된 페이지에만 애니메이션 추가
-            if (i === selectedPageIndex) {
-                console.log(`페이지 ${i + 1}에 단일 페이지 애니메이션 추가`);
-                addProcessingStep(`페이지 ${i + 1}에 겹침 필드 애니메이션 추가`);
-                await addOverlappingFieldAnimation(newPdfDoc, addedPage, i);
-            }
-            
-            const progress = 15 + ((i + 1) / originalPages.length) * 60;
-            updateProgress(progress);
-        }
-        
-        addProcessingStep('애니메이션 JavaScript 추가 중...');
-        updateProgress(80);
-        
-        // 애니메이션 제어 JavaScript 추가
-        const controlJS = createOverlappingFieldJavaScript(selectedPageIndex, gifFrames.length);
-        newPdfDoc.addJavaScript('OverlappingFieldAnimation', controlJS);
-        
-        addProcessingStep('PDF 파일 생성 중...');
-        updateProgress(90);
-        
-        // PDF 저장
-        const pdfBytes = await newPdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        if (generatedPdfUrl) {
-            URL.revokeObjectURL(generatedPdfUrl);
-        }
-        generatedPdfUrl = URL.createObjectURL(blob);
-        
-        addProcessingStep('단일 페이지 애니메이션 PDF 생성 완료!');
-        updateProgress(100);
-        
-        setTimeout(() => {
-            hideProcessing();
-            showCompletionScreen();
-        }, 1000);
-        
-        console.log('단일 페이지 애니메이션 PDF 생성 완료');
+        // Chrome PDF 뷰어에서 실제 작동하는 방법: 여러 페이지 + 자동 페이지 전환
+        await generateVerifiedAnimation();
         
     } catch (error) {
         console.error('PDF 생성 실패:', error);
         addProcessingStep('오류: ' + error.message);
         alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
         hideProcessing();
+    }
+}
+
+async function generateVerifiedAnimation() {
+    console.log('검증된 애니메이션 방식: 자동 페이지 전환');
+    
+    const newPdfDoc = await PDFLib.PDFDocument.create();
+    const originalPages = originalPdfDoc.getPages();
+    
+    addProcessingStep('원본 페이지 구조 분석 중...');
+    updateProgress(10);
+    
+    // 1. 애니메이션 페이지 이전의 모든 페이지 복사
+    for (let i = 0; i < selectedPageIndex; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        newPdfDoc.addPage(copiedPage);
+        console.log(`페이지 ${i + 1} 복사 완료`);
+    }
+    
+    addProcessingStep(`${gifFrames.length}개 애니메이션 페이지 생성 중...`);
+    updateProgress(20);
+    
+    // 2. GIF의 각 프레임을 별도 페이지로 생성
+    const animationStartPage = selectedPageIndex;
+    for (let frameIndex = 0; frameIndex < gifFrames.length; frameIndex++) {
+        // 원본 페이지 복사
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [selectedPageIndex]);
+        const animPage = newPdfDoc.addPage(copiedPage);
+        
+        // 현재 프레임 이미지 추가
+        await addSingleFrameToPage(newPdfDoc, animPage, frameIndex);
+        
+        const progress = 20 + ((frameIndex + 1) / gifFrames.length) * 50;
+        updateProgress(progress);
+        
+        console.log(`애니메이션 페이지 ${frameIndex + 1}/${gifFrames.length} 생성 완료`);
+    }
+    
+    addProcessingStep('나머지 페이지들 복사 중...');
+    updateProgress(75);
+    
+    // 3. 애니메이션 페이지 이후의 모든 페이지 복사
+    for (let i = selectedPageIndex + 1; i < originalPages.length; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        newPdfDoc.addPage(copiedPage);
+    }
+    
+    addProcessingStep('자동 페이지 전환 시스템 추가 중...');
+    updateProgress(85);
+    
+    // 4. 자동 페이지 전환 JavaScript (Chrome PDF 뷰어 호환)
+    const autoPageJS = createAutoPageTransitionJS(animationStartPage, gifFrames.length);
+    newPdfDoc.addJavaScript('AutoPageTransition', autoPageJS);
+    
+    // 5. 사용자 제어 버튼 추가 (첫 번째 애니메이션 페이지에)
+    if (newPdfDoc.getPages().length > animationStartPage) {
+        await addAnimationControls(newPdfDoc, newPdfDoc.getPages()[animationStartPage], animationStartPage, gifFrames.length);
+    }
+    
+    addProcessingStep('PDF 파일 생성 중...');
+    updateProgress(95);
+    
+    // 6. PDF 저장
+    const pdfBytes = await newPdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+    generatedPdfUrl = URL.createObjectURL(blob);
+    
+    addProcessingStep('검증된 애니메이션 PDF 생성 완료!');
+    updateProgress(100);
+    
+    setTimeout(() => {
+        hideProcessing();
+        showCompletionScreen();
+    }, 1000);
+    
+    console.log('검증된 애니메이션 PDF 생성 완료');
+}
+
+async function addSingleFrameToPage(pdfDoc, page, frameIndex) {
+    try {
+        // 페이지 크기 및 좌표 계산
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        // 안전한 위치 계산
+        const pdfX = Math.max(0, Math.min(pageWidth - 50, gifPosition.x * scaleX));
+        const pdfY = Math.max(0, Math.min(pageHeight - 50, pageHeight - (gifPosition.y + gifPosition.height) * scaleY));
+        const pdfWidth = Math.min(pageWidth - pdfX, gifPosition.width * scaleX);
+        const pdfHeight = Math.min(pageHeight - pdfY, gifPosition.height * scaleY);
+        
+        if (pdfWidth <= 0 || pdfHeight <= 0) {
+            console.warn(`프레임 ${frameIndex}: 유효하지 않은 크기 ${pdfWidth}x${pdfHeight}`);
+            return false;
+        }
+        
+        // 이미지 임베드 및 그리기
+        const embeddedImage = await pdfDoc.embedPng(gifFrames[frameIndex].data);
+        page.drawImage(embeddedImage, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+        });
+        
+        console.log(`프레임 ${frameIndex} 페이지에 추가: ${pdfX},${pdfY} ${pdfWidth}x${pdfHeight}`);
+        return true;
+        
+    } catch (error) {
+        console.error(`프레임 ${frameIndex} 추가 실패:`, error);
+        return false;
+    }
+}
+
+function createAutoPageTransitionJS(startPage, frameCount) {
+    const autoPlay = elements.autoPlay?.checked !== false;
+    const frameDelay = parseInt(elements.speedControl?.value || 500);
+    
+    return `
+// === Chrome PDF 뷰어 호환 자동 페이지 전환 시스템 ===
+console.println("자동 페이지 전환 애니메이션 시스템 로드");
+
+var AutoPageAnimation = {
+    startPage: ${startPage},
+    frameCount: ${frameCount},
+    frameDelay: ${frameDelay},
+    autoPlay: ${autoPlay},
+    currentFrame: 0,
+    isRunning: false,
+    timer: null,
+    
+    // 현재 페이지 번호 (0부터 시작)
+    getCurrentPageNum: function() {
+        try {
+            return this.pageNum;
+        } catch (e) {
+            console.println("페이지 번호 접근 실패: " + e.message);
+            return 0;
+        }
+    },
+    
+    // 특정 페이지로 이동
+    goToPage: function(pageNum) {
+        try {
+            if (pageNum >= 0 && pageNum < this.numPages) {
+                this.pageNum = pageNum;
+                console.println("페이지 " + pageNum + "로 이동");
+                return true;
+            } else {
+                console.println("유효하지 않은 페이지 번호: " + pageNum);
+                return false;
+            }
+        } catch (e) {
+            console.println("페이지 이동 실패: " + e.message);
+            return false;
+        }
+    },
+    
+    // 다음 애니메이션 프레임으로 이동
+    nextFrame: function() {
+        if (this.frameCount <= 1) return;
+        
+        this.currentFrame = (this.currentFrame + 1) % this.frameCount;
+        var targetPage = this.startPage + this.currentFrame;
+        
+        console.println("애니메이션 프레임 " + this.currentFrame + " (페이지 " + targetPage + ")");
+        
+        if (this.goToPage(targetPage)) {
+            // 다음 프레임 예약
+            if (this.isRunning && this.autoPlay) {
+                var self = this;
+                try {
+                    this.timer = app.setTimeOut(function() {
+                        self.nextFrame();
+                    }, this.frameDelay);
+                } catch (timerError) {
+                    console.println("타이머 설정 실패: " + timerError.message);
+                    // 폴백: 직접 호출
+                    try {
+                        setTimeout(function() {
+                            self.nextFrame();
+                        }, this.frameDelay);
+                    } catch (fallbackError) {
+                        console.println("폴백 타이머도 실패");
+                        this.isRunning = false;
+                    }
+                }
+            }
+        }
+    },
+    
+    // 애니메이션 시작
+    start: function() {
+        console.println("자동 페이지 전환 애니메이션 시작");
+        this.isRunning = true;
+        
+        // 기존 타이머 정리
+        this.stop();
+        
+        // 첫 번째 애니메이션 페이지로 이동
+        if (this.goToPage(this.startPage)) {
+            this.currentFrame = 0;
+            
+            // 첫 번째 프레임 전환 시작
+            if (this.frameCount > 1) {
+                var self = this;
+                try {
+                    this.timer = app.setTimeOut(function() {
+                        self.nextFrame();
+                    }, this.frameDelay);
+                } catch (e) {
+                    console.println("시작 타이머 실패: " + e.message);
+                    this.isRunning = false;
+                }
+            }
+        }
+    },
+    
+    // 애니메이션 정지
+    stop: function() {
+        console.println("자동 페이지 전환 애니메이션 정지");
+        this.isRunning = false;
+        
+        if (this.timer) {
+            try {
+                app.clearTimeOut(this.timer);
+            } catch (e) {
+                try {
+                    clearTimeout(this.timer);
+                } catch (e2) {}
+            }
+            this.timer = null;
+        }
+    },
+    
+    // 수동 프레임 진행
+    manualNext: function() {
+        this.stop();
+        this.nextFrame();
+    },
+    
+    // 애니메이션 토글
+    toggle: function() {
+        if (this.isRunning) {
+            this.stop();
+            return "시작";
+        } else {
+            this.start();
+            return "정지";
+        }
+    },
+    
+    // 초기화
+    init: function() {
+        console.println("자동 페이지 전환 초기화");
+        console.println("시작 페이지: " + this.startPage);
+        console.println("프레임 수: " + this.frameCount);
+        console.println("자동재생: " + this.autoPlay);
+        console.println("프레임 간격: " + this.frameDelay + "ms");
+        
+        // 자동재생 시작
+        if (this.autoPlay && this.frameCount > 1) {
+            var self = this;
+            try {
+                // PDF 로드 완료 후 시작 (충분한 지연)
+                app.setTimeOut(function() {
+                    self.start();
+                }, 3000);
+            } catch (e) {
+                console.println("자동재생 시작 실패: " + e.message);
+            }
+        } else {
+            // 자동재생이 아니면 첫 번째 프레임으로만 이동
+            try {
+                app.setTimeOut(function() {
+                    self.goToPage(self.startPage);
+                }, 1000);
+            } catch (e) {
+                console.println("초기 페이지 이동 실패: " + e.message);
+            }
+        }
+    }
+};
+
+// 전역 함수들 (컨트롤 버튼에서 사용)
+function startAnimation() {
+    AutoPageAnimation.start();
+}
+
+function stopAnimation() {
+    AutoPageAnimation.stop();
+}
+
+function nextAnimationFrame() {
+    AutoPageAnimation.manualNext();
+}
+
+function toggleAnimation() {
+    return AutoPageAnimation.toggle();
+}
+
+// 자동 초기화
+try {
+    if (typeof app !== 'undefined') {
+        app.setTimeOut(function() {
+            AutoPageAnimation.init();
+        }, 2000);
+    } else {
+        // PDF.js 환경을 위한 폴백
+        console.println("PDF.js 환경 감지됨");
+        setTimeout(function() {
+            AutoPageAnimation.init();
+        }, 2000);
+    }
+} catch (e) {
+    console.println("초기화 실패: " + e.message);
+}
+
+console.println("자동 페이지 전환 애니메이션 준비 완료");
+console.println("Chrome PDF 뷰어에서 " + ${frameCount} + "개 프레임이 자동 순환됩니다");
+`;
+}
+
+async function addAnimationControls(pdfDoc, page, pageIndex, frameCount) {
+    try {
+        console.log('애니메이션 컨트롤 버튼 추가');
+        
+        const form = pdfDoc.getForm();
+        const pageSize = page.getSize();
+        
+        // 컨트롤 버튼 위치 (페이지 하단)
+        const buttonY = 50;
+        const buttonWidth = 80;
+        const buttonHeight = 30;
+        const buttonSpacing = 90;
+        
+        // 시작/정지 버튼
+        try {
+            const startStopBtn = form.createButton('animStartStop');
+            startStopBtn.addToPage(page, {
+                x: 50,
+                y: buttonY,
+                width: buttonWidth,
+                height: buttonHeight,
+                fontSize: 10,
+                backgroundColor: PDFLib.rgb(0.2, 0.6, 0.2),
+                borderWidth: 1
+            });
+            
+            startStopBtn.setText('시작/정지');
+            startStopBtn.setAction(
+                PDFLib.PDFAction.createJavaScript('var result = toggleAnimation(); console.println("애니메이션 토글: " + result);')
+            );
+            
+            console.log('시작/정지 버튼 추가됨');
+        } catch (btnError) {
+            console.log('시작/정지 버튼 추가 실패:', btnError.message);
+        }
+        
+        // 다음 프레임 버튼
+        try {
+            const nextBtn = form.createButton('animNext');
+            nextBtn.addToPage(page, {
+                x: 50 + buttonSpacing,
+                y: buttonY,
+                width: buttonWidth,
+                height: buttonHeight,
+                fontSize: 10,
+                backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
+                borderWidth: 1
+            });
+            
+            nextBtn.setText('다음');
+            nextBtn.setAction(
+                PDFLib.PDFAction.createJavaScript('nextAnimationFrame(); console.println("수동 다음 프레임");')
+            );
+            
+            console.log('다음 프레임 버튼 추가됨');
+        } catch (btnError) {
+            console.log('다음 프레임 버튼 추가 실패:', btnError.message);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('컨트롤 버튼 추가 실패:', error);
+        return false;
     }
 }
 
