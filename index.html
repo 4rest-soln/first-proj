@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF GIF - 실제 움직이는 GIF가 포함된 PDF 생성</title>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -22,6 +23,7 @@
             </div>
             <nav class="nav">
                 <a href="#how-it-works">사용 방법</a>
+                <button onclick="showDebugInfo()" class="debug-btn">디버그</button>
             </nav>
         </header>
 
@@ -29,7 +31,10 @@
         <main class="main">
             <div class="hero">
                 <h1>PDF에 <span class="highlight">실제 움직이는 GIF</span>를<br>삽입하여 완전한 PDF 생성</h1>
-                <p class="subtitle">전체 PDF 파일에 자동 순환 재생되는 GIF를 삽입하고 실제 PDF로 다운로드하세요.</p>
+                <p class="subtitle">Chrome PDF 뷰어에서 자동 순환 재생되는 GIF를 삽입하고 실제 PDF로 다운로드하세요.</p>
+                <div class="compatibility-notice">
+                    <strong>호환성:</strong> Chrome 브라우저의 PDF 뷰어에서 최적화되어 작동합니다
+                </div>
             </div>
 
             <!-- 업로드 영역 -->
@@ -141,15 +146,24 @@
                                     </label>
                                 </div>
                                 <div class="control-row">
-                                    <input type="range" class="range-input" id="speedControl" min="50" max="2000" value="500">
+                                    <label>속도: </label>
+                                    <input type="range" class="range-input" id="speedControl" min="100" max="2000" value="500" step="50">
                                     <span id="speedDisplay">500ms</span>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <label>프레임 제한</label>
+                                <div class="control-row">
+                                    <input type="number" class="control-input" id="maxFrames" placeholder="최대 프레임" min="1" max="30" value="20">
+                                    <small style="font-size: 12px; color: #666;">성능을 위해 프레임 수를 제한합니다</small>
                                 </div>
                             </div>
 
                             <div class="action-buttons" style="flex-direction: column;">
                                 <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
-                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateRealPdf()" disabled>
-                                    완전한 PDF 생성하기
+                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateAdvancedPdf()" disabled>
+                                    향상된 PDF 생성하기
                                 </button>
                             </div>
                         </div>
@@ -167,6 +181,9 @@
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
                     <p id="progressText">0%</p>
+                    <div class="processing-details" id="processingDetails">
+                        <ul id="processingSteps"></ul>
+                    </div>
                 </div>
             </div>
 
@@ -181,6 +198,10 @@
                     </div>
                     <h2>PDF 생성 완료!</h2>
                     <p>움직이는 GIF가 포함된 완전한 PDF 파일이 생성되었습니다</p>
+                    <div class="completion-info">
+                        <p><strong>참고:</strong> Chrome 브라우저에서 PDF를 열어야 애니메이션이 정상 작동합니다.</p>
+                        <p>다른 PDF 뷰어에서는 첫 번째 프레임만 표시될 수 있습니다.</p>
+                    </div>
                     <div class="completion-actions">
                         <button class="btn-primary" onclick="downloadGeneratedPdf()">
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -189,6 +210,7 @@
                             </svg>
                             PDF 다운로드
                         </button>
+                        <button class="btn-secondary" onclick="previewPdf()">PDF 미리보기</button>
                         <button class="btn-secondary" onclick="startOver()">새 파일 시작</button>
                     </div>
                 </div>
@@ -217,27 +239,55 @@
                 <div class="feature-card">
                     <div class="feature-icon">✨</div>
                     <h3>완전한 PDF 생성</h3>
-                    <p>모든 페이지가 포함된<br>실제 PDF 파일을 다운로드하세요</p>
+                    <p>Chrome에서 애니메이션이 작동하는<br>실제 PDF 파일을 다운로드하세요</p>
+                </div>
+            </div>
+
+            <div class="technical-info">
+                <h3>기술적 구현 정보</h3>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <h4>폼 필드 기반 애니메이션</h4>
+                        <p>각 GIF 프레임을 개별 폼 필드로 생성하고 JavaScript로 순차 표시/숨김 제어</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Chrome PDF 뷰어 최적화</h4>
+                        <p>PDFium 엔진의 JavaScript 제한사항을 고려한 호환성 확보</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>자동 재생 시스템</h4>
+                        <p>app.setInterval을 이용한 자동 프레임 전환 및 순환 재생</p>
+                    </div>
                 </div>
             </div>
         </section>
+
+        <!-- 디버그 정보 모달 -->
+        <div class="debug-modal" id="debugModal" style="display: none;">
+            <div class="debug-content">
+                <h3>디버그 정보</h3>
+                <div id="debugInfo"></div>
+                <button onclick="hideDebugInfo()" class="btn-secondary">닫기</button>
+            </div>
+        </div>
     </div>
 
     <!-- 외부 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- GIF 처리를 위한 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
     <script>
         // PDF.js worker 설정
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
         
-        console.log('Libraries loading check:');
-        console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
-        console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
-        console.log('- jsPDF:', typeof window.jsPDF !== 'undefined');
-        console.log('- omggif:', typeof GifReader !== 'undefined');
+        // 라이브러리 로딩 상태 확인
+        console.log('=== 라이브러리 로딩 상태 ===');
+        console.log('PDF.js:', typeof pdfjsLib !== 'undefined' ? '✅' : '❌');
+        console.log('PDF-lib:', typeof PDFLib !== 'undefined' ? '✅' : '❌');
+        console.log('omggif:', typeof GifReader !== 'undefined' ? '✅' : '❌');
+        console.log('========================');
     </script>
     <script src="script.js"></script>
 </body>
