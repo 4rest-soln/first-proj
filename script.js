@@ -782,65 +782,20 @@ async function generateAdvancedPdf() {
         return;
     }
     
-    showProcessing('향상된 PDF 생성 중...', 'Chrome PDF 뷰어 호환 애니메이션 생성');
-    addProcessingStep('PDF 생성 시작');
+    showProcessing('새로운 방식으로 PDF 생성 중...', '폼 필드 없이 순수 이미지 기반 애니메이션 생성');
+    addProcessingStep('새로운 PDF 생성 방식 시작');
     updateProgress(5);
     updateStep(4);
     
     try {
-        console.log('=== 향상된 PDF 생성 시작 ===');
+        console.log('=== 폼 필드 없는 PDF 생성 시작 ===');
         
-        // 새 PDF 문서 생성
-        const newPdfDoc = await PDFLib.PDFDocument.create();
-        const originalPages = originalPdfDoc.getPages();
-        
-        addProcessingStep('PDF 페이지 복사 중...');
-        updateProgress(15);
-        
-        // 모든 페이지 복사
-        for (let i = 0; i < originalPages.length; i++) {
-            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
-            const addedPage = newPdfDoc.addPage(copiedPage);
-            
-            // 선택된 페이지에 애니메이션 추가
-            if (i === selectedPageIndex) {
-                console.log(`페이지 ${i + 1}에 향상된 애니메이션 추가`);
-                addProcessingStep(`페이지 ${i + 1}에 애니메이션 추가`);
-                await addAdvancedAnimationToPage(newPdfDoc, addedPage, i);
-            }
-            
-            const progress = 15 + ((i + 1) / originalPages.length) * 60;
-            updateProgress(progress);
+        // 방법 1: 각 프레임을 별도 페이지로 생성하는 방식
+        if (gifFrames.length > 1) {
+            await generateMultiPageAnimation();
+        } else {
+            await generateSingleFramePdf();
         }
-        
-        addProcessingStep('문서 레벨 JavaScript 추가');
-        updateProgress(80);
-        
-        // 전역 JavaScript 추가
-        const globalJS = createGlobalJavaScript();
-        newPdfDoc.addJavaScript('GlobalAnimationSystem', globalJS);
-        
-        addProcessingStep('PDF 파일 생성 중...');
-        updateProgress(90);
-        
-        // PDF 저장
-        const pdfBytes = await newPdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        if (generatedPdfUrl) {
-            URL.revokeObjectURL(generatedPdfUrl);
-        }
-        generatedPdfUrl = URL.createObjectURL(blob);
-        
-        addProcessingStep('PDF 생성 완료!');
-        updateProgress(100);
-        
-        setTimeout(() => {
-            hideProcessing();
-            showCompletionScreen();
-        }, 1000);
-        
-        console.log('PDF 생성 완료');
         
     } catch (error) {
         console.error('PDF 생성 실패:', error);
@@ -848,6 +803,305 @@ async function generateAdvancedPdf() {
         alert('PDF 생성 중 오류가 발생했습니다: ' + error.message);
         hideProcessing();
     }
+}
+
+async function generateMultiPageAnimation() {
+    console.log('멀티 페이지 애니메이션 생성');
+    
+    // 새 PDF 문서 생성
+    const newPdfDoc = await PDFLib.PDFDocument.create();
+    const originalPages = originalPdfDoc.getPages();
+    
+    addProcessingStep('기본 페이지들 복사 중...');
+    updateProgress(10);
+    
+    // 애니메이션이 들어갈 페이지 전까지 복사
+    for (let i = 0; i < selectedPageIndex; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        newPdfDoc.addPage(copiedPage);
+    }
+    
+    addProcessingStep('애니메이션 프레임 페이지들 생성 중...');
+    const animationStartProgress = 20;
+    const animationEndProgress = 70;
+    
+    // 각 GIF 프레임을 별도 페이지로 생성
+    for (let frameIndex = 0; frameIndex < gifFrames.length; frameIndex++) {
+        try {
+            // 원본 페이지 복사
+            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [selectedPageIndex]);
+            const animPage = newPdfDoc.addPage(copiedPage);
+            
+            // 이미지를 페이지에 직접 그리기 (폼 필드 없음)
+            await addImageDirectlyToPage(newPdfDoc, animPage, frameIndex);
+            
+            const progress = animationStartProgress + 
+                ((frameIndex + 1) / gifFrames.length) * (animationEndProgress - animationStartProgress);
+            updateProgress(progress);
+            
+            console.log(`프레임 ${frameIndex + 1}/${gifFrames.length} 페이지 생성 완료`);
+            
+        } catch (frameError) {
+            console.error(`프레임 ${frameIndex} 페이지 생성 실패:`, frameError);
+            addProcessingStep(`프레임 ${frameIndex} 오류, 건너뜀`);
+        }
+    }
+    
+    addProcessingStep('나머지 페이지들 복사 중...');
+    updateProgress(75);
+    
+    // 애니메이션 페이지 이후의 페이지들 복사
+    for (let i = selectedPageIndex + 1; i < originalPages.length; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        newPdfDoc.addPage(copiedPage);
+    }
+    
+    // 페이지 자동 전환 JavaScript 추가
+    addProcessingStep('페이지 전환 JavaScript 추가 중...');
+    updateProgress(85);
+    
+    const pageTransitionJS = createPageTransitionJavaScript(selectedPageIndex, gifFrames.length);
+    newPdfDoc.addJavaScript('PageTransitionAnimation', pageTransitionJS);
+    
+    addProcessingStep('PDF 파일 생성 중...');
+    updateProgress(90);
+    
+    // PDF 저장
+    const pdfBytes = await newPdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+    generatedPdfUrl = URL.createObjectURL(blob);
+    
+    addProcessingStep('멀티 페이지 애니메이션 PDF 생성 완료!');
+    updateProgress(100);
+    
+    setTimeout(() => {
+        hideProcessing();
+        showCompletionScreen();
+    }, 1000);
+    
+    console.log('멀티 페이지 애니메이션 PDF 생성 완료');
+}
+
+async function generateSingleFramePdf() {
+    console.log('단일 프레임 PDF 생성');
+    
+    const newPdfDoc = await PDFLib.PDFDocument.create();
+    const originalPages = originalPdfDoc.getPages();
+    
+    addProcessingStep('모든 페이지 복사 중...');
+    updateProgress(20);
+    
+    // 모든 페이지 복사
+    for (let i = 0; i < originalPages.length; i++) {
+        const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+        const addedPage = newPdfDoc.addPage(copiedPage);
+        
+        // 선택된 페이지에만 이미지 추가
+        if (i === selectedPageIndex) {
+            await addImageDirectlyToPage(newPdfDoc, addedPage, 0);
+        }
+        
+        const progress = 20 + ((i + 1) / originalPages.length) * 60;
+        updateProgress(progress);
+    }
+    
+    addProcessingStep('PDF 파일 생성 중...');
+    updateProgress(90);
+    
+    // PDF 저장
+    const pdfBytes = await newPdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+    generatedPdfUrl = URL.createObjectURL(blob);
+    
+    addProcessingStep('단일 프레임 PDF 생성 완료!');
+    updateProgress(100);
+    
+    setTimeout(() => {
+        hideProcessing();
+        showCompletionScreen();
+    }, 1000);
+    
+    console.log('단일 프레임 PDF 생성 완료');
+}
+
+async function addImageDirectlyToPage(pdfDoc, page, frameIndex) {
+    try {
+        // 페이지 크기 및 좌표 계산
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        // PDF 좌표계로 변환
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        // 이미지 임베드 및 그리기
+        const embeddedImage = await pdfDoc.embedPng(gifFrames[frameIndex].data);
+        page.drawImage(embeddedImage, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+        });
+        
+        console.log(`프레임 ${frameIndex} 이미지가 페이지에 직접 추가됨`);
+        return true;
+        
+    } catch (error) {
+        console.error(`프레임 ${frameIndex} 이미지 추가 실패:`, error);
+        return false;
+    }
+}
+
+function createPageTransitionJavaScript(startPageIndex, frameCount) {
+    const autoPlay = elements.autoPlay?.checked !== false;
+    const frameDelay = parseInt(elements.speedControl?.value || 500);
+    
+    return `
+// === 페이지 전환 기반 애니메이션 시스템 ===
+console.println("페이지 전환 애니메이션 시스템 로드됨");
+
+var PageAnimation = {
+    startPage: ${startPageIndex},
+    frameCount: ${frameCount},
+    frameDelay: ${frameDelay},
+    autoPlay: ${autoPlay},
+    currentFrame: 0,
+    isRunning: false,
+    timer: null,
+    
+    // 특정 프레임 페이지로 이동
+    goToFrame: function(frameIndex) {
+        try {
+            var targetPage = this.startPage + frameIndex;
+            if (targetPage >= 0 && targetPage < this.numPages) {
+                this.pageNum = targetPage;
+                console.println("페이지 " + targetPage + "로 이동 (프레임 " + frameIndex + ")");
+            }
+        } catch (e) {
+            console.println("페이지 이동 실패: " + e.message);
+        }
+    },
+    
+    // 다음 프레임으로 전환
+    nextFrame: function() {
+        this.currentFrame = (this.currentFrame + 1) % this.frameCount;
+        this.goToFrame(this.currentFrame);
+        
+        if (this.isRunning && this.autoPlay) {
+            var self = this;
+            try {
+                this.timer = app.setTimeOut(function() {
+                    self.nextFrame();
+                }, this.frameDelay);
+            } catch (timerError) {
+                console.println("타이머 설정 실패: " + timerError.message);
+                this.isRunning = false;
+            }
+        }
+    },
+    
+    // 애니메이션 시작
+    start: function() {
+        console.println("페이지 전환 애니메이션 시작");
+        this.isRunning = true;
+        
+        if (this.timer) {
+            try {
+                app.clearTimeOut(this.timer);
+            } catch (e) {}
+            this.timer = null;
+        }
+        
+        // 첫 번째 애니메이션 프레임으로 이동
+        this.goToFrame(0);
+        this.currentFrame = 0;
+        
+        if (this.frameCount > 1) {
+            var self = this;
+            try {
+                this.timer = app.setTimeOut(function() {
+                    self.nextFrame();
+                }, this.frameDelay);
+            } catch (e) {
+                console.println("애니메이션 시작 실패: " + e.message);
+                this.isRunning = false;
+            }
+        }
+    },
+    
+    // 애니메이션 정지
+    stop: function() {
+        console.println("페이지 전환 애니메이션 정지");
+        this.isRunning = false;
+        
+        if (this.timer) {
+            try {
+                app.clearTimeOut(this.timer);
+            } catch (e) {}
+            this.timer = null;
+        }
+    },
+    
+    // 초기화
+    init: function() {
+        console.println("페이지 전환 애니메이션 초기화");
+        
+        // 첫 번째 애니메이션 페이지로 이동
+        this.goToFrame(0);
+        this.currentFrame = 0;
+        
+        // 자동재생 시작
+        if (this.autoPlay && this.frameCount > 1) {
+            var self = this;
+            try {
+                app.setTimeOut(function() {
+                    self.start();
+                }, 2000); // 2초 후 시작
+            } catch (e) {
+                console.println("자동재생 스케줄링 실패: " + e.message);
+            }
+        }
+    }
+};
+
+// 문서 열기 시 자동 초기화
+try {
+    if (typeof app !== 'undefined') {
+        app.setTimeOut(function() {
+            PageAnimation.init();
+        }, 1500);
+    }
+} catch (initError) {
+    console.println("초기화 실패: " + initError.message);
+}
+
+// 수동 제어 함수들
+function startPageAnimation() {
+    PageAnimation.start();
+}
+
+function stopPageAnimation() {
+    PageAnimation.stop();
+}
+
+function nextAnimationFrame() {
+    PageAnimation.nextFrame();
+}
+
+console.println("페이지 전환 애니메이션 준비 완료");
+console.println("프레임 수: ${frameCount}, 시작 페이지: ${startPageIndex}");
+`;
 }
 
 async function addAdvancedAnimationToPage(pdfDoc, page, pageIndex) {
