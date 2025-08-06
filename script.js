@@ -1,4 +1,4 @@
-// PDF GIF Animator - Chrome PDFium 최적화 버전 (오류 수정)
+// PDF GIF Animator - Chrome PDFium 최적화 버전 (완전 수정)
 // 전역 변수
 let currentPdfFile = null;
 let originalPdfDoc = null;
@@ -13,7 +13,6 @@ let isResizing = false;
 let dragStart = { x: 0, y: 0 };
 let resizeHandle = null;
 let generatedPdfUrl = null;
-let isProcessing = false; // 중복 처리 방지
 
 // 디버그 로깅
 const DEBUG = true;
@@ -52,26 +51,41 @@ function checkLibraries() {
     return true;
 }
 
-// 이벤트 리스너 초기화 (수정됨)
+// 이벤트 리스너 초기화 (완전히 수정됨)
 function initializeEventListeners() {
-    // PDF 업로드
+    // PDF 업로드 - 문제 해결
     const pdfInput = document.getElementById('pdfInput');
     const pdfUploadBox = document.getElementById('pdfUploadBox');
     
-    // 파일 입력 이벤트 (수정됨)
+    // 파일 입력 변경 이벤트
     pdfInput.addEventListener('change', function(e) {
-        e.stopPropagation(); // 이벤트 버블링 방지
-        handlePdfUpload(e);
+        if (e.target.files && e.target.files[0]) {
+            handlePdfFile(e.target.files[0]);
+        }
     });
     
-    // 업로드 박스 클릭 (수정됨)
+    // 업로드 박스 클릭 - 이벤트 전파 차단
     pdfUploadBox.addEventListener('click', function(e) {
-        e.stopPropagation();
-        // 직접 클릭한 경우에만 파일 선택 창 열기
-        if (e.target === pdfUploadBox || e.target.closest('.upload-content')) {
+        // 버튼이나 업로드 박스를 직접 클릭한 경우만 파일 선택
+        if (e.target.tagName === 'BUTTON' || 
+            e.target.classList.contains('upload-box') || 
+            e.target.classList.contains('upload-content') ||
+            e.target.closest('.upload-content')) {
+            e.preventDefault();
+            e.stopPropagation();
             pdfInput.click();
         }
     });
+    
+    // 버튼 클릭 이벤트 별도 처리
+    const selectButton = pdfUploadBox.querySelector('.btn-primary');
+    if (selectButton) {
+        selectButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfInput.click();
+        });
+    }
     
     // 드래그 앤 드롭
     pdfUploadBox.addEventListener('dragover', (e) => {
@@ -93,7 +107,6 @@ function initializeEventListeners() {
         
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].type === 'application/pdf') {
-            // 파일을 직접 처리
             handlePdfFile(files[0]);
         } else if (files.length > 0) {
             alert('PDF 파일만 업로드 가능합니다.');
@@ -105,7 +118,10 @@ function initializeEventListeners() {
     const gifUploadArea = document.getElementById('gifUploadArea');
     
     gifInput.addEventListener('change', handleGifUpload);
-    gifUploadArea.addEventListener('click', () => gifInput.click());
+    gifUploadArea.addEventListener('click', (e) => {
+        e.preventDefault();
+        gifInput.click();
+    });
     
     // GIF 오버레이 드래그
     const gifOverlay = document.getElementById('gifOverlay');
@@ -125,29 +141,13 @@ function initializeEventListeners() {
     });
 }
 
-// PDF 업로드 처리 (수정됨)
-async function handlePdfUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (file.type !== 'application/pdf') {
-        alert('PDF 파일을 선택해주세요.');
-        e.target.value = ''; // 입력 초기화
-        return;
-    }
-    
-    handlePdfFile(file);
-}
-
-// PDF 파일 처리 (새로운 함수)
+// PDF 파일 처리 (통합 함수)
 async function handlePdfFile(file) {
-    // 중복 처리 방지
-    if (isProcessing) {
-        log('이미 처리 중입니다');
+    if (!file || file.type !== 'application/pdf') {
+        alert('PDF 파일을 선택해주세요.');
         return;
     }
     
-    isProcessing = true;
     log('PDF 업로드 시작', file.name);
     showProcessing('PDF 분석 중...', 'PDF 파일을 읽고 있습니다');
     
@@ -185,8 +185,6 @@ async function handlePdfFile(file) {
         log('PDF 로드 실패', error);
         alert('PDF 파일을 읽을 수 없습니다: ' + error.message);
         hideProcessing();
-    } finally {
-        isProcessing = false;
     }
 }
 
@@ -318,7 +316,6 @@ async function extractGifFrames(file) {
         const framesToExtract = Math.min(frameCount, maxFrames);
         
         log(`GIF 프레임 추출: ${framesToExtract}/${frameCount} 프레임`);
-        updateProcessingDetails(`${framesToExtract}개 프레임 추출 중...`);
         
         const frames = [];
         
@@ -342,8 +339,6 @@ async function extractGifFrames(file) {
                 dataUrl: canvas.toDataURL('image/png', 0.8),
                 delay: Math.max(frameInfo.delay * 10, 100)
             });
-            
-            updateProgress(10 + (i / framesToExtract) * 40);
         }
         
         log(`${frames.length}개 프레임 추출 완료`);
@@ -506,7 +501,7 @@ function handleMouseUp() {
     resizeHandle = null;
 }
 
-// 최적화된 PDF 생성 (수정됨)
+// 최적화된 PDF 생성 (애니메이션 문제 해결)
 async function generateOptimizedPdf() {
     if (!gifFrames.length || selectedPageIndex === -1) {
         alert('필요한 데이터가 없습니다.');
@@ -521,6 +516,7 @@ async function generateOptimizedPdf() {
         const newPdfDoc = await PDFLib.PDFDocument.create();
         const originalPages = originalPdfDoc.getPages();
         
+        // 페이지별 처리
         for (let i = 0; i < originalPages.length; i++) {
             updateProcessingDetails(`페이지 ${i + 1}/${originalPages.length} 처리 중...`);
             updateProgress(10 + (i / originalPages.length) * 40);
@@ -530,7 +526,7 @@ async function generateOptimizedPdf() {
             
             if (i === selectedPageIndex) {
                 log(`페이지 ${i + 1}에 애니메이션 추가`);
-                await addOptimizedAnimation(newPdfDoc, addedPage, i);
+                await addChromeOptimizedAnimation(newPdfDoc, addedPage, i);
             }
         }
         
@@ -545,6 +541,7 @@ async function generateOptimizedPdf() {
         }
         generatedPdfUrl = URL.createObjectURL(blob);
         
+        // 완료 정보 업데이트
         document.getElementById('fileSize').textContent = formatFileSize(blob.size);
         document.getElementById('frameCount').textContent = gifFrames.length + '개';
         document.getElementById('animSpeed').textContent = document.getElementById('speedControl').value + 'ms';
@@ -562,9 +559,9 @@ async function generateOptimizedPdf() {
     }
 }
 
-// Chrome PDFium에 최적화된 애니메이션 추가 (수정됨)
-async function addOptimizedAnimation(pdfDoc, page, pageIndex) {
-    log('Chrome 최적화 애니메이션 추가 시작');
+// Chrome PDFium 최적화 애니메이션 (완전히 재작성)
+async function addChromeOptimizedAnimation(pdfDoc, page, pageIndex) {
+    log('Chrome 최적화 애니메이션 추가 - 개선된 버전');
     
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const canvas = document.getElementById('pdfPreviewCanvas');
@@ -581,257 +578,197 @@ async function addOptimizedAnimation(pdfDoc, page, pageIndex) {
     const autoPlay = document.getElementById('autoPlay').checked;
     const frameDelay = parseInt(document.getElementById('speedControl').value);
     
-    log(`위치: (${Math.round(pdfX)}, ${Math.round(pdfY)}), 크기: ${Math.round(pdfWidth)}x${Math.round(pdfHeight)}`);
-    log(`프레임: ${gifFrames.length}개, 속도: ${frameDelay}ms, 자동재생: ${autoPlay}`);
+    log(`프레임 수: ${gifFrames.length}, 자동재생: ${autoPlay}, 속도: ${frameDelay}ms`);
     
-    // 프레임 이미지 추가
-    const frameFields = [];
+    // 1. 모든 프레임 이미지를 버튼으로 추가
+    const fieldNames = [];
+    
     for (let i = 0; i < gifFrames.length; i++) {
-        updateProcessingDetails(`프레임 ${i + 1}/${gifFrames.length} 임베딩...`);
+        const fieldName = `f${pageIndex}_${i}`;
+        const button = form.createButton(fieldName);
         
-        try {
-            // PNG 이미지 임베드
-            const pngImage = await pdfDoc.embedPng(gifFrames[i].data);
-            
-            // 이미지를 직접 페이지에 그리기 (첫 프레임만)
-            if (i === 0) {
-                page.drawImage(pngImage, {
-                    x: pdfX,
-                    y: pdfY,
-                    width: pdfWidth,
-                    height: pdfHeight,
-                });
-            }
-            
-            // 폼 필드 생성
-            const fieldName = `frame_${pageIndex}_${i}`;
-            const button = form.createButton(fieldName);
-            
-            // 버튼을 페이지에 추가 (수정됨: 텍스트 없이)
-            const widget = button.addToPage(page, {
-                x: pdfX,
-                y: pdfY,
-                width: pdfWidth,
-                height: pdfHeight,
-                borderWidth: 0,
-                backgroundColor: PDFLib.rgb(1, 1, 1),
-            });
-            
-            // 버튼 이미지 설정
-            button.setImage(pngImage);
-            
-            // 첫 프레임 제외하고 숨김
-            if (i > 0) {
-                widget.setHidden(true);
-            }
-            
-            frameFields.push(fieldName);
-            
-        } catch (error) {
-            log(`프레임 ${i} 추가 실패:`, error);
+        // PNG 이미지 임베드
+        const pngImage = await pdfDoc.embedPng(gifFrames[i].data);
+        
+        // 버튼 위젯 추가
+        const widget = button.addToPage(page, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+            borderWidth: 0
+        });
+        
+        // 이미지 설정
+        button.setImage(pngImage);
+        
+        // 초기 상태: 첫 프레임만 표시
+        if (i === 0) {
+            widget.setHidden(false);
+        } else {
+            widget.setHidden(true);
         }
+        
+        fieldNames.push(fieldName);
+        log(`프레임 ${i + 1} 추가 완료`);
     }
     
-    // JavaScript 애니메이션 코드
-    const animationJS = `
-// Chrome PDFium Animation - Page ${pageIndex + 1}
-var anim${pageIndex} = {
-    frames: [${frameFields.map(name => `"${name}"`).join(',')}],
-    current: 0,
-    total: ${frameFields.length},
-    delay: ${frameDelay},
-    autoPlay: ${autoPlay},
-    running: false,
+    // 2. Document-level JavaScript 추가 (가장 호환성 높은 방식)
+    const docJS = `
+// PDFium Animation System - Page ${pageIndex + 1}
+console.println("=== Animation Init for Page ${pageIndex + 1} ===");
+
+// Animation state
+var animState = {
+    page: ${pageIndex},
+    fields: [${fieldNames.map(n => '"' + n + '"').join(',')}],
+    currentFrame: 0,
+    frameCount: ${gifFrames.length},
+    frameDelay: ${frameDelay},
+    isPlaying: false,
     timer: null
 };
 
-// Initialize
-anim${pageIndex}.init = function() {
-    try {
-        console.println("[Anim] Init page ${pageIndex + 1}");
-        
-        // Hide all frames
-        for (var i = 0; i < this.total; i++) {
-            var f = this.getField(this.frames[i]);
-            if (f) f.display = display.hidden;
+// Hide all frames
+function hideAllFrames() {
+    for (var i = 0; i < animState.frameCount; i++) {
+        try {
+            var field = this.getField(animState.fields[i]);
+            if (field != null) {
+                field.hidden = true;
+                field.display = display.hidden;
+            }
+        } catch(e) {
+            console.println("Hide error: " + e);
         }
-        
-        // Show first frame
-        var first = this.getField(this.frames[0]);
-        if (first) first.display = display.visible;
-        
-        // Auto play
-        if (this.autoPlay && this.total > 1) {
-            var self = this;
-            app.setTimeOut("anim${pageIndex}.start()", 1000);
+    }
+}
+
+// Show specific frame
+function showFrame(index) {
+    try {
+        var field = this.getField(animState.fields[index]);
+        if (field != null) {
+            field.hidden = false;
+            field.display = display.visible;
         }
     } catch(e) {
-        console.println("[Anim] Init error: " + e);
+        console.println("Show error: " + e);
     }
-};
+}
 
-// Show frame
-anim${pageIndex}.showFrame = function(idx) {
-    try {
-        // Hide current
-        var curr = this.getField(this.frames[this.current]);
-        if (curr) curr.display = display.hidden;
-        
-        // Show new
-        this.current = idx % this.total;
-        var next = this.getField(this.frames[this.current]);
-        if (next) next.display = display.visible;
-    } catch(e) {}
-};
-
-// Next frame
-anim${pageIndex}.nextFrame = function() {
-    this.showFrame((this.current + 1) % this.total);
+// Animation loop
+function animateFrame() {
+    console.println("Frame: " + animState.currentFrame);
     
-    if (this.running) {
-        var self = this;
-        this.timer = app.setTimeOut("anim${pageIndex}.nextFrame()", this.delay);
+    // Hide all frames
+    hideAllFrames();
+    
+    // Show current frame
+    showFrame(animState.currentFrame);
+    
+    // Next frame
+    animState.currentFrame = (animState.currentFrame + 1) % animState.frameCount;
+    
+    // Continue if playing
+    if (animState.isPlaying) {
+        animState.timer = app.setTimeOut("animateFrame()", animState.frameDelay);
     }
-};
+}
 
 // Start animation
-anim${pageIndex}.start = function() {
-    this.running = true;
-    this.nextFrame();
-};
+function startAnimation() {
+    console.println("Starting animation");
+    animState.isPlaying = true;
+    animState.currentFrame = 0;
+    animateFrame();
+}
 
 // Stop animation
-anim${pageIndex}.stop = function() {
-    this.running = false;
-    if (this.timer) {
-        app.clearTimeOut(this.timer);
-        this.timer = null;
+function stopAnimation() {
+    console.println("Stopping animation");
+    animState.isPlaying = false;
+    if (animState.timer != null) {
+        app.clearTimeOut(animState.timer);
+        animState.timer = null;
     }
-};
+}
 
-// Toggle
-anim${pageIndex}.toggle = function() {
-    if (this.running) {
-        this.stop();
-        return "Play";
-    } else {
-        this.start();
-        return "Pause";
+// Initialize on document open
+function initAnimation() {
+    console.println("Initializing animation");
+    hideAllFrames();
+    showFrame(0);
+    
+    if (${autoPlay} && animState.frameCount > 1) {
+        app.setTimeOut("startAnimation()", 1000);
     }
-};
+}
 
-// Initialize on page open
-try {
-    app.setTimeOut("anim${pageIndex}.init()", 500);
-} catch(e) {}
+// Run initialization
+app.setTimeOut("initAnimation()", 500);
 `;
     
     // JavaScript 추가
-    pdfDoc.addJavaScript(`AnimScript_${pageIndex}`, animationJS);
+    pdfDoc.addJavaScript('AnimationScript', docJS);
     
-    // 컨트롤 버튼 추가 (수동 재생일 경우) - 수정됨
-    if (!autoPlay && frameFields.length > 1) {
-        try {
-            const controlButton = form.createButton(`ctrl_${pageIndex}`);
-            
-            // 버튼 위젯 추가 (수정됨: 초기 텍스트 제공)
-            const buttonWidget = controlButton.addToPage(page, {
-                x: pdfX,
-                y: pdfY - 40,
-                width: Math.min(100, pdfWidth),
-                height: 30,
-                borderWidth: 1,
-                backgroundColor: PDFLib.rgb(0.9, 0.9, 0.9),
-                borderColor: PDFLib.rgb(0.5, 0.5, 0.5),
-            });
-            
-            // 버튼 캡션 설정
-            controlButton.setText('Play');
-            
-            // 버튼 액션 추가
-            const buttonJS = `
-                var btn = this.getField("ctrl_${pageIndex}");
-                var caption = anim${pageIndex}.toggle();
-                if (btn) btn.buttonSetCaption(caption);
-            `;
-            
-            controlButton.addPushAction(PDFLib.PDFJavaScript.of(buttonJS));
-            
-        } catch (btnError) {
-            log('컨트롤 버튼 추가 실패:', btnError);
-        }
+    // 3. Page Open 액션 추가 (추가 보장)
+    const pageOpenJS = `
+console.println("Page ${pageIndex + 1} opened");
+if (typeof initAnimation === 'function') {
+    initAnimation();
+}
+`;
+    
+    try {
+        // 페이지 오픈 액션 설정
+        const pageDict = page.node;
+        const openAction = PDFLib.PDFDict.withContext(pdfDoc.context);
+        openAction.set(PDFLib.PDFName.of('S'), PDFLib.PDFName.of('JavaScript'));
+        openAction.set(PDFLib.PDFName.of('JS'), PDFLib.PDFString.of(pageOpenJS));
+        
+        // AA (Additional Actions) 딕셔너리 생성
+        const aaDict = PDFLib.PDFDict.withContext(pdfDoc.context);
+        aaDict.set(PDFLib.PDFName.of('O'), openAction);
+        pageDict.set(PDFLib.PDFName.of('AA'), aaDict);
+        
+        log('Page Open 액션 추가 완료');
+    } catch (error) {
+        log('Page Open 액션 추가 실패:', error);
     }
     
-    log('애니메이션 추가 완료');
+    // 4. 수동 컨트롤 버튼 추가
+    if (!autoPlay && gifFrames.length > 1) {
+        const ctrlButton = form.createButton(`ctrl${pageIndex}`);
+        
+        const ctrlWidget = ctrlButton.addToPage(page, {
+            x: pdfX,
+            y: pdfY - 35,
+            width: Math.min(80, pdfWidth),
+            height: 25,
+            borderWidth: 1,
+            backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
+            borderColor: PDFLib.rgb(0, 0, 0),
+            textColor: PDFLib.rgb(1, 1, 1)
+        });
+        
+        ctrlButton.setText('Play');
+        
+        // 버튼 클릭 액션
+        const buttonJS = `
+if (animState.isPlaying) {
+    stopAnimation();
+    this.getField("ctrl${pageIndex}").buttonSetCaption("Play");
+} else {
+    startAnimation();
+    this.getField("ctrl${pageIndex}").buttonSetCaption("Stop");
 }
-
-// PDF 다운로드
-function downloadGeneratedPdf() {
-    if (!generatedPdfUrl) {
-        alert('생성된 PDF가 없습니다.');
-        return;
+`;
+        
+        ctrlButton.addPushAction(PDFLib.PDFJavaScript.of(buttonJS));
     }
     
-    const link = document.createElement('a');
-    link.href = generatedPdfUrl;
-    link.download = `animated_${Date.now()}.pdf`;
-    link.click();
-    
-    log('PDF 다운로드 시작');
-}
-
-// 브라우저에서 미리보기
-function previewInBrowser() {
-    if (!generatedPdfUrl) {
-        alert('생성된 PDF가 없습니다.');
-        return;
-    }
-    
-    window.open(generatedPdfUrl, '_blank');
-    log('브라우저 미리보기 열기');
-}
-
-// 처음부터 다시 시작
-function startOver() {
-    if (generatedPdfUrl) {
-        URL.revokeObjectURL(generatedPdfUrl);
-    }
-    
-    // 상태 초기화
-    currentPdfFile = null;
-    originalPdfDoc = null;
-    renderPdfDoc = null;
-    pdfPages = [];
-    selectedPageIndex = -1;
-    gifFile = null;
-    gifFrames = [];
-    generatedPdfUrl = null;
-    isProcessing = false;
-    
-    // UI 초기화
-    document.getElementById('uploadSection').style.display = 'block';
-    document.getElementById('workspace').style.display = 'none';
-    document.getElementById('completionScreen').style.display = 'none';
-    document.getElementById('pdfInput').value = '';
-    document.getElementById('gifInput').value = '';
-    
-    log('애플리케이션 초기화');
-}
-
-// 이전 단계로
-function backToPageSelection() {
-    document.getElementById('gifPositionEditor').style.display = 'none';
-    document.getElementById('pageSelector').style.display = 'block';
-    updateStep(1);
-    
-    // 상태 초기화
-    gifFile = null;
-    gifFrames = [];
-    document.getElementById('gifOverlay').style.display = 'none';
-    document.getElementById('gifUploadArea').innerHTML = '<p>GIF 선택</p>';
-    document.getElementById('gifUploadArea').classList.remove('has-gif');
-    document.getElementById('btnGeneratePdf').disabled = true;
-    document.getElementById('gifInput').value = '';
+    log('애니메이션 설정 완료');
 }
 
 // UI 헬퍼 함수들
@@ -888,6 +825,83 @@ function formatFileSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+// PDF 다운로드
+function downloadGeneratedPdf() {
+    if (!generatedPdfUrl) {
+        alert('생성된 PDF가 없습니다.');
+        return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = generatedPdfUrl;
+    link.download = `animated_${Date.now()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    log('PDF 다운로드 시작');
+}
+
+// 브라우저에서 미리보기
+function previewInBrowser() {
+    if (!generatedPdfUrl) {
+        alert('생성된 PDF가 없습니다.');
+        return;
+    }
+    
+    window.open(generatedPdfUrl, '_blank');
+    log('브라우저 미리보기 열기');
+}
+
+// 처음부터 다시 시작
+function startOver() {
+    if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+    }
+    
+    // 상태 초기화
+    currentPdfFile = null;
+    originalPdfDoc = null;
+    renderPdfDoc = null;
+    pdfPages = [];
+    selectedPageIndex = -1;
+    gifFile = null;
+    gifFrames = [];
+    generatedPdfUrl = null;
+    
+    // UI 초기화
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('workspace').style.display = 'none';
+    document.getElementById('completionScreen').style.display = 'none';
+    document.getElementById('pdfInput').value = '';
+    document.getElementById('gifInput').value = '';
+    document.getElementById('pagesGrid').innerHTML = '';
+    document.getElementById('gifUploadArea').innerHTML = '<p>GIF 선택</p>';
+    document.getElementById('gifUploadArea').classList.remove('has-gif');
+    document.getElementById('gifOverlay').style.display = 'none';
+    
+    // 단계 초기화
+    updateStep(1);
+    
+    log('애플리케이션 완전 초기화');
+}
+
+// 이전 단계로
+function backToPageSelection() {
+    document.getElementById('gifPositionEditor').style.display = 'none';
+    document.getElementById('pageSelector').style.display = 'block';
+    updateStep(1);
+    
+    // GIF 상태 초기화
+    gifFile = null;
+    gifFrames = [];
+    document.getElementById('gifOverlay').style.display = 'none';
+    document.getElementById('gifUploadArea').innerHTML = '<p>GIF 선택</p>';
+    document.getElementById('gifUploadArea').classList.remove('has-gif');
+    document.getElementById('btnGeneratePdf').disabled = true;
+    document.getElementById('gifInput').value = '';
+}
+
 // 디버그 함수들
 function showDebugInfo() {
     const debugPanel = document.getElementById('debugPanel');
@@ -900,6 +914,8 @@ function showDebugInfo() {
         updateDebugPanel(`Selected page: ${selectedPageIndex + 1}`);
         updateDebugPanel(`GIF frames: ${gifFrames.length}`);
         updateDebugPanel(`Position: ${JSON.stringify(gifPosition)}`);
+        updateDebugPanel(`Auto-play: ${document.getElementById('autoPlay').checked}`);
+        updateDebugPanel(`Frame delay: ${document.getElementById('speedControl').value}ms`);
         updateDebugPanel('==================');
         debugPanel.style.display = 'block';
     } else {
@@ -921,11 +937,9 @@ function updateDebugPanel(message) {
     const timestamp = new Date().toLocaleTimeString();
     const newLine = `[${timestamp}] ${message}`;
     
-    // 기존 내용에 추가
     const lines = debugContent.innerHTML.split('<br>').filter(Boolean);
     lines.unshift(newLine);
     
-    // 최대 30줄만 유지
     if (lines.length > 30) {
         lines.splice(30);
     }
@@ -938,7 +952,6 @@ window.addEventListener('error', function(e) {
     log('전역 에러:', e.message);
     console.error(e);
     
-    // 처리 중 에러가 발생하면 오버레이 숨기기
     if (document.getElementById('processingOverlay').style.display !== 'none') {
         hideProcessing();
         alert('오류가 발생했습니다. 다시 시도해주세요.');
@@ -949,7 +962,6 @@ window.addEventListener('unhandledrejection', function(e) {
     log('Promise 거부:', e.reason);
     console.error(e);
     
-    // 처리 중 에러가 발생하면 오버레이 숨기기
     if (document.getElementById('processingOverlay').style.display !== 'none') {
         hideProcessing();
         alert('처리 중 오류가 발생했습니다.');
@@ -963,4 +975,39 @@ window.addEventListener('beforeunload', function() {
     }
 });
 
-log('스크립트 로드 완료');
+// 디버그용 전역 함수 노출
+window.pdfGifDebug = {
+    getState: function() {
+        return {
+            pdfLoaded: !!originalPdfDoc,
+            pages: pdfPages.length,
+            selectedPage: selectedPageIndex,
+            gifFrames: gifFrames.length,
+            position: gifPosition,
+            autoPlay: document.getElementById('autoPlay').checked,
+            frameDelay: document.getElementById('speedControl').value
+        };
+    },
+    testAnimation: function() {
+        if (gifFrames.length > 0) {
+            log('테스트 애니메이션 시작');
+            let frame = 0;
+            const interval = setInterval(() => {
+                frame = (frame + 1) % gifFrames.length;
+                document.getElementById('gifPreviewElement').innerHTML = 
+                    `<img src="${gifFrames[frame].dataUrl}" alt="Frame ${frame}">`;
+                
+                if (frame === 0) {
+                    clearInterval(interval);
+                    log('테스트 애니메이션 완료');
+                }
+            }, 500);
+        }
+    },
+    forceInit: function() {
+        log('강제 초기화 실행');
+        initializeEventListeners();
+    }
+};
+
+log('스크립트 로드 완료 - v2.0');
