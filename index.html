@@ -22,7 +22,7 @@
             </div>
             <nav class="nav">
                 <a href="#how-it-works">사용 방법</a>
-                <a href="#" onclick="showDebugInfo()">디버그</a>
+                <a href="#" id="btnShowDebug">디버그</a>
             </nav>
         </header>
 
@@ -52,7 +52,7 @@
                         </div>
                         <h3>PDF 파일 선택</h3>
                         <p>또는 여기에 파일을 드래그하세요</p>
-                        <button class="btn-primary" onclick="document.getElementById('pdfInput').click()">
+                        <button class="btn-primary" id="pdfSelectBtn">
                             파일 선택하기
                         </button>
                     </div>
@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-primary" id="btnSelectPage" onclick="proceedToGifUpload()" disabled>
+                        <button class="btn-primary" id="btnSelectPage" disabled>
                             선택한 페이지로 계속
                         </button>
                     </div>
@@ -161,8 +161,8 @@
                             </div>
 
                             <div class="action-buttons">
-                                <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
-                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateOptimizedPdf()" disabled>
+                                <button class="btn-secondary" id="btnBackToPage">이전</button>
+                                <button class="btn-primary" id="btnGeneratePdf" disabled>
                                     PDF 생성
                                 </button>
                             </div>
@@ -210,15 +210,15 @@
                     </div>
                     
                     <div class="completion-actions">
-                        <button class="btn-primary" onclick="downloadGeneratedPdf()">
+                        <button class="btn-primary" id="btnDownloadPdf">
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                                 <path d="M10 14L6 10M10 14L14 10M10 14V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                             PDF 다운로드
                         </button>
-                        <button class="btn-secondary" onclick="previewInBrowser()">미리보기</button>
-                        <button class="btn-secondary" onclick="startOver()">새 파일</button>
+                        <button class="btn-secondary" id="btnPreview">미리보기</button>
+                        <button class="btn-secondary" id="btnStartOver">새 파일</button>
                     </div>
                 </div>
             </div>
@@ -256,7 +256,7 @@
     <div id="debugPanel" class="debug-panel" style="display: none;">
         <h3>디버그 정보</h3>
         <div id="debugContent"></div>
-        <button onclick="closeDebugPanel()">닫기</button>
+        <button id="btnCloseDebug">닫기</button>
     </div>
 
     <!-- 라이브러리 로드 -->
