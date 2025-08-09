@@ -53,75 +53,134 @@ function checkLibraries() {
 
 // 이벤트 리스너 초기화 (완전히 수정됨)
 function initializeEventListeners() {
-    // PDF 업로드 - 문제 해결
+    log('이벤트 리스너 초기화 시작');
+    
+    // PDF 업로드 관련
     const pdfInput = document.getElementById('pdfInput');
     const pdfUploadBox = document.getElementById('pdfUploadBox');
+    const pdfSelectBtn = document.getElementById('pdfSelectBtn');
     
     // 파일 입력 변경 이벤트
-    pdfInput.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files[0]) {
-            handlePdfFile(e.target.files[0]);
-        }
-    });
+    if (pdfInput) {
+        pdfInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                handlePdfFile(e.target.files[0]);
+            }
+        });
+    }
     
-    // 업로드 박스 클릭 - 이벤트 전파 차단
-    pdfUploadBox.addEventListener('click', function(e) {
-        // 버튼이나 업로드 박스를 직접 클릭한 경우만 파일 선택
-        if (e.target.tagName === 'BUTTON' || 
-            e.target.classList.contains('upload-box') || 
-            e.target.classList.contains('upload-content') ||
-            e.target.closest('.upload-content')) {
-            e.preventDefault();
-            e.stopPropagation();
-            pdfInput.click();
-        }
-    });
-    
-    // 버튼 클릭 이벤트 별도 처리
-    const selectButton = pdfUploadBox.querySelector('.btn-primary');
-    if (selectButton) {
-        selectButton.addEventListener('click', function(e) {
+    // PDF 선택 버튼 클릭
+    if (pdfSelectBtn) {
+        pdfSelectBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             pdfInput.click();
         });
     }
     
-    // 드래그 앤 드롭
-    pdfUploadBox.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pdfUploadBox.classList.add('drag-over');
-    });
-    
-    pdfUploadBox.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pdfUploadBox.classList.remove('drag-over');
-    });
-    
-    pdfUploadBox.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pdfUploadBox.classList.remove('drag-over');
+    // 업로드 박스 클릭 (버튼 제외)
+    if (pdfUploadBox) {
+        pdfUploadBox.addEventListener('click', function(e) {
+            // 버튼을 클릭한 경우는 제외
+            if (e.target.id !== 'pdfSelectBtn' && !e.target.closest('button')) {
+                e.preventDefault();
+                pdfInput.click();
+            }
+        });
         
-        const files = e.dataTransfer.files;
-        if (files.length > 0 && files[0].type === 'application/pdf') {
-            handlePdfFile(files[0]);
-        } else if (files.length > 0) {
-            alert('PDF 파일만 업로드 가능합니다.');
-        }
-    });
+        // 드래그 앤 드롭
+        pdfUploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.add('drag-over');
+        });
+        
+        pdfUploadBox.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.remove('drag-over');
+        });
+        
+        pdfUploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            pdfUploadBox.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handlePdfFile(files[0]);
+            } else if (files.length > 0) {
+                alert('PDF 파일만 업로드 가능합니다.');
+            }
+        });
+    }
     
-    // GIF 업로드
+    // GIF 업로드 관련
     const gifInput = document.getElementById('gifInput');
     const gifUploadArea = document.getElementById('gifUploadArea');
     
-    gifInput.addEventListener('change', handleGifUpload);
-    gifUploadArea.addEventListener('click', (e) => {
-        e.preventDefault();
-        gifInput.click();
-    });
+    if (gifInput) {
+        gifInput.addEventListener('change', handleGifUpload);
+        log('GIF input 이벤트 리스너 등록');
+    }
+    
+    if (gifUploadArea) {
+        gifUploadArea.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            log('GIF 업로드 영역 클릭');
+            gifInput.click();
+        });
+        log('GIF 업로드 영역 이벤트 리스너 등록');
+    }
+    
+    // 페이지 선택 버튼
+    const btnSelectPage = document.getElementById('btnSelectPage');
+    if (btnSelectPage) {
+        btnSelectPage.addEventListener('click', proceedToGifUpload);
+    }
+    
+    // PDF 생성 버튼
+    const btnGeneratePdf = document.getElementById('btnGeneratePdf');
+    if (btnGeneratePdf) {
+        btnGeneratePdf.addEventListener('click', generateOptimizedPdf);
+    }
+    
+    // 이전 버튼
+    const btnBackToPage = document.getElementById('btnBackToPage');
+    if (btnBackToPage) {
+        btnBackToPage.addEventListener('click', backToPageSelection);
+    }
+    
+    // 완료 화면 버튼들
+    const btnDownloadPdf = document.getElementById('btnDownloadPdf');
+    if (btnDownloadPdf) {
+        btnDownloadPdf.addEventListener('click', downloadGeneratedPdf);
+    }
+    
+    const btnPreview = document.getElementById('btnPreview');
+    if (btnPreview) {
+        btnPreview.addEventListener('click', previewInBrowser);
+    }
+    
+    const btnStartOver = document.getElementById('btnStartOver');
+    if (btnStartOver) {
+        btnStartOver.addEventListener('click', startOver);
+    }
+    
+    // 디버그 버튼
+    const btnShowDebug = document.getElementById('btnShowDebug');
+    if (btnShowDebug) {
+        btnShowDebug.addEventListener('click', function(e) {
+            e.preventDefault();
+            showDebugInfo();
+        });
+    }
+    
+    const btnCloseDebug = document.getElementById('btnCloseDebug');
+    if (btnCloseDebug) {
+        btnCloseDebug.addEventListener('click', closeDebugPanel);
+    }
     
     // GIF 오버레이 드래그
     const gifOverlay = document.getElementById('gifOverlay');
@@ -132,13 +191,24 @@ function initializeEventListeners() {
     document.addEventListener('mouseup', handleMouseUp);
     
     // 컨트롤 입력
-    document.getElementById('posX').addEventListener('input', updateGifFromControls);
-    document.getElementById('posY').addEventListener('input', updateGifFromControls);
-    document.getElementById('gifWidth').addEventListener('input', updateGifFromControls);
-    document.getElementById('gifHeight').addEventListener('input', updateGifFromControls);
-    document.getElementById('speedControl').addEventListener('input', function() {
-        document.getElementById('speedDisplay').textContent = this.value + 'ms';
-    });
+    const posX = document.getElementById('posX');
+    const posY = document.getElementById('posY');
+    const gifWidth = document.getElementById('gifWidth');
+    const gifHeight = document.getElementById('gifHeight');
+    const speedControl = document.getElementById('speedControl');
+    
+    if (posX) posX.addEventListener('input', updateGifFromControls);
+    if (posY) posY.addEventListener('input', updateGifFromControls);
+    if (gifWidth) gifWidth.addEventListener('input', updateGifFromControls);
+    if (gifHeight) gifHeight.addEventListener('input', updateGifFromControls);
+    
+    if (speedControl) {
+        speedControl.addEventListener('input', function() {
+            document.getElementById('speedDisplay').textContent = this.value + 'ms';
+        });
+    }
+    
+    log('모든 이벤트 리스너 등록 완료');
 }
 
 // PDF 파일 처리 (통합 함수)
@@ -268,8 +338,16 @@ async function renderPagePreview() {
 // GIF 업로드 처리
 async function handleGifUpload(e) {
     const file = e.target.files[0];
-    if (!file || file.type !== 'image/gif') {
+    log('GIF 파일 선택:', file);
+    
+    if (!file) {
+        log('파일이 선택되지 않음');
+        return;
+    }
+    
+    if (file.type !== 'image/gif') {
         alert('GIF 파일을 선택해주세요.');
+        log('GIF가 아닌 파일 선택됨:', file.type);
         return;
     }
     
@@ -293,13 +371,14 @@ async function handleGifUpload(e) {
             showGifOverlay(e.target.result);
             updateStep(3);
             document.getElementById('btnGeneratePdf').disabled = false;
+            log('GIF 업로드 완료');
         };
         reader.readAsDataURL(file);
         
         hideProcessing();
     } catch (error) {
         log('GIF 처리 실패', error);
-        alert('GIF 파일을 처리할 수 없습니다.');
+        alert('GIF 파일을 처리할 수 없습니다: ' + error.message);
         hideProcessing();
     }
 }
