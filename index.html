@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF GIF Animator - Chrome 최적화 버전</title>
+    <title>PDF GIF - 크롬 호환 애니메이션 PDF 생성</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -18,24 +18,23 @@
                     <path d="M8 12H24M8 16H20M8 20H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
                     <circle cx="24" cy="20" r="4" fill="#60A5FA"/>
                 </svg>
-                <span>PDF GIF Animator</span>
+                <span>PDF GIF</span>
             </div>
             <nav class="nav">
                 <a href="#how-it-works">사용 방법</a>
-                <a href="#" id="btnShowDebug">디버그</a>
+                <a href="#compatibility">크롬 호환성</a>
             </nav>
         </header>
 
         <!-- 메인 섹션 -->
         <main class="main">
             <div class="hero">
-                <h1>PDF에 <span class="highlight">실제 움직이는 GIF</span>를<br>Chrome에서 재생 가능하게</h1>
-                <p class="subtitle">Chrome PDF 뷰어에 최적화된 JavaScript 애니메이션으로 GIF를 PDF에 삽입합니다.</p>
-                <div class="compatibility-notice">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM7 4h2v5H7V4zm0 6h2v2H7v-2z"/>
-                    </svg>
-                    <span>Chrome/Edge PDF 뷰어에서 최상의 호환성을 제공합니다</span>
+                <h1>PDF에 <span class="highlight">크롬 호환 애니메이션</span>을<br>삽입하여 완전한 PDF 생성</h1>
+                <p class="subtitle">크롬 브라우저 PDF 뷰어에서 작동하는 텍스트 기반 애니메이션 PDF를 생성하세요.</p>
+                <div class="compatibility-badge">
+                    <span class="badge chrome">✅ Chrome PDFium</span>
+                    <span class="badge firefox">✅ Firefox PDF.js</span>
+                    <span class="badge acrobat">✅ Adobe Acrobat</span>
                 </div>
             </div>
 
@@ -52,7 +51,7 @@
                         </div>
                         <h3>PDF 파일 선택</h3>
                         <p>또는 여기에 파일을 드래그하세요</p>
-                        <button class="btn-primary" id="pdfSelectBtn">
+                        <button class="btn-primary" id="selectFileBtn" type="button">
                             파일 선택하기
                         </button>
                     </div>
@@ -73,7 +72,7 @@
                     </div>
                     <div class="step" data-step="3">
                         <div class="step-number">3</div>
-                        <span>위치 조정</span>
+                        <span>위치 & 설정</span>
                     </div>
                     <div class="step" data-step="4">
                         <div class="step-number">4</div>
@@ -84,24 +83,24 @@
                 <!-- 페이지 선택기 -->
                 <div class="page-selector" id="pageSelector">
                     <div class="pdf-info">
-                        <h3 id="pdfFileName">PDF 파일</h3>
-                        <p id="pdfPageCount">총 페이지: -</p>
-                        <p class="info-text">GIF를 삽입할 페이지를 선택하세요.</p>
+                        <h3 id="pdfFileName">PDF 파일 정보</h3>
+                        <p id="pdfPageCount">총 페이지 수: -</p>
+                        <p class="info-text">애니메이션이 삽입될 페이지를 선택하세요. 나머지 페이지는 원본 그대로 유지됩니다.</p>
                     </div>
                     
                     <div class="pages-grid" id="pagesGrid">
-                        <!-- 페이지 썸네일 동적 생성 -->
+                        <!-- 페이지 썸네일들이 여기에 동적으로 생성됩니다 -->
                     </div>
 
                     <div class="action-buttons">
-                        <button class="btn-primary" id="btnSelectPage" disabled>
+                        <button class="btn-primary" id="btnSelectPage" onclick="proceedToGifUpload()" disabled>
                             선택한 페이지로 계속
                         </button>
                     </div>
                 </div>
 
-                <!-- GIF 편집기 -->
-                <div class="gif-position-editor" id="gifPositionEditor" style="display: none;">
+                <!-- GIF 위치 편집기 -->
+                <div class="gif-position-editor" id="gifPositionEditor">
                     <div class="editor-container">
                         <div class="pdf-preview-container" id="pdfPreviewContainer">
                             <canvas id="pdfPreviewCanvas" class="pdf-preview-canvas"></canvas>
@@ -119,51 +118,62 @@
                                 <label>GIF 파일</label>
                                 <div class="gif-upload-area" id="gifUploadArea">
                                     <input type="file" id="gifInput" accept=".gif" hidden>
-                                    <p>GIF 선택</p>
+                                    <p>GIF 파일을 선택하세요</p>
                                 </div>
                             </div>
 
                             <div class="control-group">
-                                <label>위치 (X, Y)</label>
+                                <label>위치 (픽셀)</label>
                                 <div class="control-row">
-                                    <input type="number" class="control-input" id="posX" value="50" min="0">
-                                    <input type="number" class="control-input" id="posY" value="50" min="0">
+                                    <input type="number" class="control-input" id="posX" placeholder="X" min="0">
+                                    <input type="number" class="control-input" id="posY" placeholder="Y" min="0">
                                 </div>
                             </div>
 
                             <div class="control-group">
-                                <label>크기 (너비, 높이)</label>
+                                <label>크기 (픽셀)</label>
                                 <div class="control-row">
-                                    <input type="number" class="control-input" id="gifWidth" value="100" min="10">
-                                    <input type="number" class="control-input" id="gifHeight" value="100" min="10">
+                                    <input type="number" class="control-input" id="gifWidth" placeholder="너비" min="10">
+                                    <input type="number" class="control-input" id="gifHeight" placeholder="높이" min="10">
                                 </div>
                             </div>
 
                             <div class="control-group">
                                 <label>애니메이션 설정</label>
-                                <div class="checkbox-wrapper">
-                                    <input type="checkbox" id="autoPlay" checked>
-                                    <label for="autoPlay">자동 재생</label>
+                                <div class="animation-mode">
+                                    <label class="radio-label">
+                                        <input type="radio" name="animationMode" value="ascii" checked>
+                                        <span>텍스트 애니메이션 (크롬 최적화)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="animationMode" value="button">
+                                        <span>버튼 애니메이션 (Acrobat 전용)</span>
+                                    </label>
                                 </div>
                                 <div class="control-row">
-                                    <label>속도:</label>
-                                    <input type="range" id="speedControl" min="100" max="2000" value="500">
-                                    <span id="speedDisplay">500ms</span>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="autoPlay" checked>
+                                        <span>자동 재생</span>
+                                    </label>
+                                </div>
+                                <div class="control-row">
+                                    <input type="range" class="range-input" id="speedControl" min="100" max="2000" value="300">
+                                    <span id="speedDisplay">300ms</span>
+                                </div>
+                                <div class="control-row">
+                                    <label>해상도:</label>
+                                    <select id="asciiResolution" class="control-input">
+                                        <option value="40x20">40x20 (빠름)</option>
+                                        <option value="60x30" selected>60x30 (균형)</option>
+                                        <option value="80x40">80x40 (고품질)</option>
+                                    </select>
                                 </div>
                             </div>
 
-                            <div class="control-group">
-                                <label>프레임 제한</label>
-                                <div class="control-row">
-                                    <input type="number" class="control-input" id="maxFrames" value="10" min="1" max="30">
-                                    <span class="help-text">최대 프레임</span>
-                                </div>
-                            </div>
-
-                            <div class="action-buttons">
-                                <button class="btn-secondary" id="btnBackToPage">이전</button>
-                                <button class="btn-primary" id="btnGeneratePdf" disabled>
-                                    PDF 생성
+                            <div class="action-buttons" style="flex-direction: column;">
+                                <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
+                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateCompatiblePdf()" disabled>
+                                    크롬 호환 PDF 생성하기
                                 </button>
                             </div>
                         </div>
@@ -171,7 +181,7 @@
                 </div>
             </div>
 
-            <!-- 처리 중 오버레이 -->
+            <!-- 처리 중 표시 -->
             <div class="processing-overlay" id="processingOverlay" style="display: none;">
                 <div class="processing-content">
                     <div class="spinner"></div>
@@ -181,7 +191,6 @@
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
                     <p id="progressText">0%</p>
-                    <div id="processingDetails" class="processing-details"></div>
                 </div>
             </div>
 
@@ -194,77 +203,88 @@
                             <path d="M20 32L28 40L44 24" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
-                    <h2>PDF 생성 완료!</h2>
-                    <p>Chrome PDF 뷰어에 최적화된 애니메이션 PDF가 생성되었습니다</p>
-                    
-                    <div class="completion-info">
-                        <div class="info-item">
-                            <strong>파일 크기:</strong> <span id="fileSize">-</span>
-                        </div>
-                        <div class="info-item">
-                            <strong>프레임 수:</strong> <span id="frameCount">-</span>
-                        </div>
-                        <div class="info-item">
-                            <strong>애니메이션 속도:</strong> <span id="animSpeed">-</span>
-                        </div>
-                    </div>
-                    
+                    <h2>크롬 호환 PDF 생성 완료!</h2>
+                    <p>크롬 브라우저에서 동작하는 애니메이션 PDF 파일이 생성되었습니다</p>
                     <div class="completion-actions">
-                        <button class="btn-primary" id="btnDownloadPdf">
+                        <button class="btn-primary" onclick="downloadGeneratedPdf()">
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                                 <path d="M10 14L6 10M10 14L14 10M10 14V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                             PDF 다운로드
                         </button>
-                        <button class="btn-secondary" id="btnPreview">미리보기</button>
-                        <button class="btn-secondary" id="btnStartOver">새 파일</button>
+                        <button class="btn-secondary" onclick="startOver()">새 파일 시작</button>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- 사용 방법 -->
+        <!-- 사용 방법 섹션 -->
         <section class="how-it-works" id="how-it-works">
-            <h2>Chrome PDF 뷰어 최적화 기술</h2>
+            <h2>크롬 브라우저 호환 애니메이션 PDF</h2>
             <div class="feature-grid">
                 <div class="feature-card">
+                    <div class="feature-icon">📄</div>
+                    <h3>PDF 업로드</h3>
+                    <p>편집할 PDF 파일을 선택하세요<br>모든 페이지가 보존됩니다</p>
+                </div>
+                <div class="feature-card">
                     <div class="feature-icon">🎯</div>
-                    <h3>PDFium 호환</h3>
-                    <p>Chrome PDFium 엔진에서<br>지원하는 JavaScript API 활용</p>
+                    <h3>페이지 선택</h3>
+                    <p>애니메이션을 넣을 특정 페이지를 선택하세요<br>나머지는 원본 그대로</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>최적화된 애니메이션</h3>
-                    <p>폼 필드 기반 프레임 전환으로<br>부드러운 애니메이션 구현</p>
+                    <div class="feature-icon">🎬</div>
+                    <h3>텍스트 애니메이션</h3>
+                    <p>텍스트 필드 기반 애니메이션으로<br>크롬에서 안정적으로 작동</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔧</div>
-                    <h3>스마트 프레임 제한</h3>
-                    <p>성능 최적화를 위한<br>자동 프레임 수 조절</p>
+                    <div class="feature-icon">✨</div>
+                    <h3>호환 PDF 생성</h3>
+                    <p>크롬, 파이어폭스, Acrobat에서<br>모두 작동하는 PDF 파일</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">✅</div>
-                    <h3>검증된 호환성</h3>
-                    <p>Chrome, Edge 등<br>주요 브라우저에서 테스트 완료</p>
+            </div>
+        </section>
+
+        <!-- 호환성 정보 섹션 -->
+        <section class="compatibility-info" id="compatibility">
+            <h2>브라우저 호환성</h2>
+            <div class="compatibility-grid">
+                <div class="compatibility-card chrome-card">
+                    <h3>🌐 Chrome PDFium</h3>
+                    <p>텍스트 필드 프레임버퍼 방식으로 완벽 지원</p>
+                    <div class="support-level full">완전 지원</div>
+                </div>
+                <div class="compatibility-card firefox-card">
+                    <h3>🦊 Firefox PDF.js</h3>
+                    <p>기본 폼 필드 JavaScript 지원</p>
+                    <div class="support-level full">완전 지원</div>
+                </div>
+                <div class="compatibility-card acrobat-card">
+                    <h3>📄 Adobe Acrobat</h3>
+                    <p>모든 기능 지원 + 고급 애니메이션</p>
+                    <div class="support-level full">완전 지원</div>
                 </div>
             </div>
         </section>
     </div>
 
-    <!-- 디버그 패널 -->
-    <div id="debugPanel" class="debug-panel" style="display: none;">
-        <h3>디버그 정보</h3>
-        <div id="debugContent"></div>
-        <button id="btnCloseDebug">닫기</button>
-    </div>
-
     <!-- 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
+    <!-- 개선된 GIF 처리 라이브러리 -->
+    <script src="https://unpkg.com/gifuct-js/dist/gifuct.min.js"></script>
+    
     <script>
+        // PDF.js worker 설정
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        console.log('=== 크롬 호환 PDF 생성기 ===');
+        console.log('Libraries loading check:');
+        console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
+        console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
+        console.log('- gifuct-js:', typeof gifuct !== 'undefined');
+        console.log('============================');
     </script>
     <script src="script.js"></script>
 </body>
