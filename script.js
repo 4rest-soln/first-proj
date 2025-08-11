@@ -50,7 +50,14 @@ let elements = null;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== 크롬 호환 PDF GIF 생성기 초기화 ===');
     
+    // DOM 요소 초기화
     elements = getElements();
+    
+    // 필수 요소 존재 확인
+    console.log('DOM 요소 확인:');
+    console.log('- pdfInput:', !!elements.pdfInput);
+    console.log('- selectFileBtn:', !!elements.selectFileBtn);
+    console.log('- pdfUploadBox:', !!elements.pdfUploadBox);
     
     if (!elements.pdfInput || !elements.selectFileBtn) {
         console.error('필수 DOM 요소가 없습니다');
@@ -59,6 +66,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('DOM 요소 확인 완료');
+    
+    // 즉시 테스트 이벤트 리스너 추가 (디버깅용)
+    elements.selectFileBtn.addEventListener('click', function(e) {
+        console.log('=== 버튼 클릭 감지됨 ===');
+        console.log('Event:', e);
+        console.log('Target:', e.target);
+        console.log('isUploadInProgress:', isUploadInProgress);
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (isUploadInProgress) {
+            console.log('업로드 진행 중이므로 무시');
+            return;
+        }
+        
+        console.log('파일 입력 요소 클릭 시도');
+        
+        if (elements.pdfInput) {
+            try {
+                elements.pdfInput.click();
+                console.log('파일 입력 클릭 성공');
+            } catch (error) {
+                console.error('파일 입력 클릭 실패:', error);
+            }
+        } else {
+            console.error('pdfInput 요소가 null입니다');
+        }
+    });
+    
+    console.log('테스트 이벤트 리스너 추가 완료');
     
     initializeEventListeners();
     checkBrowserSupport();
@@ -98,12 +136,25 @@ function checkBrowserSupport() {
 function initializeEventListeners() {
     console.log('이벤트 리스너 초기화 시작');
     
-    // 파일 업로드 이벤트 (수정된 부분)
+    // 요소 존재 확인
+    if (!elements.selectFileBtn) {
+        console.error('selectFileBtn 요소를 찾을 수 없습니다');
+        return;
+    }
+    
+    if (!elements.pdfInput) {
+        console.error('pdfInput 요소를 찾을 수 없습니다');
+        return;
+    }
+    
+    // 파일 업로드 이벤트
     elements.selectFileBtn.addEventListener('click', handleFileButtonClick);
     elements.pdfInput.addEventListener('change', handlePdfUpload);
     elements.gifInput.addEventListener('change', handleGifUpload);
     
-    // 업로드 박스 클릭 (수정된 부분)
+    console.log('파일 버튼 이벤트 리스너 등록됨');
+    
+    // 업로드 박스 클릭
     elements.pdfUploadBox.addEventListener('click', handleUploadBoxClick);
 
     // 드래그 앤 드롭
@@ -154,14 +205,20 @@ function handleFileButtonClick(e) {
         return;
     }
     
-    elements.pdfInput.click();
+    // 직접 파일 입력 요소 클릭
+    if (elements.pdfInput) {
+        elements.pdfInput.click();
+    } else {
+        console.error('pdfInput 요소를 찾을 수 없음');
+    }
 }
 
 // 업로드 박스 클릭 처리 (수정된 부분)
 function handleUploadBoxClick(e) {
-    // 버튼 클릭이 아닌 경우에만 파일 선택 창 열기
-    if (e.target === elements.selectFileBtn || elements.selectFileBtn.contains(e.target)) {
-        return; // 버튼 클릭은 handleFileButtonClick에서 처리
+    // 버튼이나 그 자식 요소 클릭 시에는 중복 처리 방지
+    if (e.target.closest('#selectFileBtn')) {
+        console.log('버튼 영역 클릭 - 중복 처리 방지');
+        return;
     }
     
     e.preventDefault();
@@ -174,7 +231,11 @@ function handleUploadBoxClick(e) {
         return;
     }
     
-    elements.pdfInput.click();
+    if (elements.pdfInput) {
+        elements.pdfInput.click();
+    } else {
+        console.error('pdfInput 요소를 찾을 수 없음');
+    }
 }
 
 // 속도 표시 업데이트
