@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF GIF - 크롬 호환 애니메이션 PDF 생성</title>
+    <title>PDF GIF - 크롬 호환 애니메이션 PDF 생성 (라이브러리 대체 버전)</title>
     <meta name="description" content="크롬 브라우저 PDF 뷰어에서 작동하는 텍스트 기반 애니메이션 PDF를 생성하세요.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,6 +40,16 @@
                     <span class="badge firefox">✅ Firefox PDF.js</span>
                     <span class="badge acrobat">✅ Adobe Acrobat</span>
                 </div>
+            </div>
+
+            <!-- 라이브러리 상태 표시 -->
+            <div id="libraryStatus" style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: none;">
+                <h4 style="margin: 0 0 8px 0; color: #92400e;">⚠️ 라이브러리 로딩 상태</h4>
+                <ul id="libraryList" style="margin: 0; padding-left: 20px; color: #92400e;">
+                </ul>
+                <p style="margin: 8px 0 0 0; font-size: 14px; color: #92400e;">
+                    일부 라이브러리가 로드되지 않았지만 기본 기능은 사용 가능합니다.
+                </p>
             </div>
 
             <!-- 업로드 영역 -->
@@ -282,60 +292,104 @@
         </section>
     </div>
 
-    <!-- 라이브러리 로드 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <!-- 개선된 GIF 처리 라이브러리 -->
-    <script src="https://unpkg.com/gifuct-js/dist/gifuct.min.js"></script>
-    
+    <!-- 라이브러리 로드 순서 최적화 -->
     <script>
-        // PDF.js worker 설정
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // 전역 설정
+        window.PDFGIF = {
+            libraries: {},
+            status: {
+                pdfjs: false,
+                pdflib: false,
+                gifuct: false
+            }
+        };
         
-        console.log('=== 크롬 호환 PDF 생성기 ===');
-        console.log('Libraries loading check:');
-        console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
-        console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
-        console.log('- gifuct-js:', typeof gifuct !== 'undefined');
-        console.log('============================');
-        
-        // 라이브러리 로딩 확인
-        function checkLibraryLoading() {
-            const requiredLibs = {
+        // 라이브러리 상태 체크 함수
+        function checkLibraryStatus() {
+            const status = {
                 'PDF.js': typeof pdfjsLib !== 'undefined',
                 'PDF-lib': typeof PDFLib !== 'undefined',
                 'gifuct-js': typeof gifuct !== 'undefined'
             };
             
-            const missing = Object.entries(requiredLibs)
+            window.PDFGIF.status = {
+                pdfjs: status['PDF.js'],
+                pdflib: status['PDF-lib'],
+                gifuct: status['gifuct-js']
+            };
+            
+            const missing = Object.entries(status)
                 .filter(([name, loaded]) => !loaded)
                 .map(([name]) => name);
             
             if (missing.length > 0) {
-                console.error('Missing libraries:', missing);
-                setTimeout(checkLibraryLoading, 1000); // 1초 후 재확인
-            } else {
-                console.log('All libraries loaded successfully');
+                showLibraryStatus(status);
+                console.warn('Missing libraries:', missing);
+            }
+            
+            return missing.length === 0;
+        }
+        
+        function showLibraryStatus(status) {
+            const statusDiv = document.getElementById('libraryStatus');
+            const listDiv = document.getElementById('libraryList');
+            
+            if (statusDiv && listDiv) {
+                listDiv.innerHTML = Object.entries(status)
+                    .map(([name, loaded]) => 
+                        `<li>${loaded ? '✅' : '❌'} ${name}</li>`
+                    ).join('');
+                statusDiv.style.display = 'block';
             }
         }
         
-        // 라이브러리 로딩 상태 확인
-        setTimeout(checkLibraryLoading, 500);
+        // 초기 설정
+        console.log('=== 크롬 호환 PDF 생성기 (라이브러리 대체 버전) ===');
     </script>
-    <script src="script.js"></script>
 
-    <!-- 구글 애널리틱스 또는 기타 추적 스크립트가 필요한 경우 여기에 추가 -->
+    <!-- 필수 라이브러리들을 순차적으로 로드 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" 
+            onload="console.log('PDF.js loaded'); window.PDFGIF.status.pdfjs = true;"
+            onerror="console.error('PDF.js failed to load')"></script>
     
-    <!-- 서비스 워커 등록 (PWA를 원하는 경우) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"
+            onload="console.log('PDF-lib loaded'); window.PDFGIF.status.pdflib = true;"
+            onerror="console.error('PDF-lib failed to load')"></script>
+    
+    <!-- gifuct-js 대체 CDN 시도 -->
+    <script src="https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/dist/gifuct.min.js"
+            onload="console.log('gifuct-js loaded from jsDelivr'); window.PDFGIF.status.gifuct = true;"
+            onerror="console.warn('gifuct-js failed from jsDelivr, trying unpkg')"></script>
+    
+    <!-- 백업 CDN -->
     <script>
-        // 서비스 워커 등록 (선택사항)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                // navigator.serviceWorker.register('/sw.js')
-                //     .then(registration => console.log('SW registered'))
-                //     .catch(error => console.log('SW registration failed'));
-            });
+        if (!window.PDFGIF.status.gifuct) {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/gifuct-js@2.1.2/dist/gifuct.min.js';
+            script.onload = function() {
+                console.log('gifuct-js loaded from unpkg');
+                window.PDFGIF.status.gifuct = true;
+            };
+            script.onerror = function() {
+                console.warn('gifuct-js failed from unpkg too');
+            };
+            document.head.appendChild(script);
         }
     </script>
+    
+    <script>
+        // PDF.js worker 설정
+        setTimeout(() => {
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                console.log('PDF.js worker configured');
+            }
+            
+            // 최종 라이브러리 상태 확인
+            setTimeout(checkLibraryStatus, 1000);
+        }, 500);
+    </script>
+    
+    <script src="script.js"></script>
 </body>
 </html>
