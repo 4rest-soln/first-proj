@@ -1,4 +1,139 @@
-console.log('이벤트 리스너 초기화 시작');
+// 전역 변수
+let currentPdfFile = null;
+let originalPdfDoc = null;
+let renderPdfDoc = null;
+let pdfPages = [];
+let selectedPageIndex = -1;
+let gifFile = null;
+let gifFrames = [];
+let gifPosition = { x: 50, y: 50, width: 100, height: 100 };
+let isDragging = false;
+let isResizing = false;
+let dragStart = { x: 0, y: 0 };
+let resizeHandle = null;
+let generatedPdfUrl = null;
+let isUploadInProgress = false;
+
+// DOM 요소 가져오기
+function getElements() {
+    return {
+        pdfInput: document.getElementById('pdfInput'),
+        selectFileBtn: document.getElementById('selectFileBtn'),
+        pdfUploadBox: document.getElementById('pdfUploadBox'),
+        uploadSection: document.getElementById('uploadSection'),
+        workspace: document.getElementById('workspace'),
+        pageSelector: document.getElementById('pageSelector'),
+        pagesGrid: document.getElementById('pagesGrid'),
+        btnSelectPage: document.getElementById('btnSelectPage'),
+        gifPositionEditor: document.getElementById('gifPositionEditor'),
+        gifInput: document.getElementById('gifInput'),
+        gifUploadArea: document.getElementById('gifUploadArea'),
+        gifOverlay: document.getElementById('gifOverlay'),
+        gifPreviewElement: document.getElementById('gifPreviewElement'),
+        pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
+        pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
+        btnGeneratePdf: document.getElementById('btnGeneratePdf'),
+        processingOverlay: document.getElementById('processingOverlay'),
+        completionScreen: document.getElementById('completionScreen'),
+        progressFill: document.getElementById('progressFill'),
+        progressText: document.getElementById('progressText'),
+        autoPlay: document.getElementById('autoPlay'),
+        speedControl: document.getElementById('speedControl'),
+        speedDisplay: document.getElementById('speedDisplay'),
+        asciiResolution: document.getElementById('asciiResolution')
+    };
+}
+
+let elements = null;
+
+// DOM 로드 완료 시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== 크롬 호환 PDF GIF 생성기 초기화 (대체 버전) ===');
+    
+    // DOM 요소 초기화
+    elements = getElements();
+    
+    // 필수 요소 존재 확인
+    console.log('DOM 요소 확인:');
+    console.log('- pdfInput:', !!elements.pdfInput);
+    console.log('- selectFileBtn:', !!elements.selectFileBtn);
+    console.log('- pdfUploadBox:', !!elements.pdfUploadBox);
+    
+    if (!elements.pdfInput || !elements.selectFileBtn || !elements.pdfUploadBox) {
+        console.error('필수 DOM 요소가 없습니다');
+        alert('페이지 로딩 문제가 발생했습니다. 새로고침해주세요.');
+        return;
+    }
+    
+    console.log('DOM 요소 확인 완료');
+    
+    // 라이브러리 확인 후 초기화
+    waitForLibrariesAndInitialize();
+});
+
+// 라이브러리 로딩 대기 및 초기화
+function waitForLibrariesAndInitialize() {
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    function checkAndInit() {
+        attempts++;
+        console.log(`라이브러리 확인 시도 ${attempts}/${maxAttempts}`);
+        
+        const librariesReady = checkBrowserSupport();
+        
+        if (librariesReady) {
+            console.log('모든 라이브러리 준비 완료, 초기화 진행');
+            initializeEventListeners();
+        } else if (attempts < maxAttempts) {
+            console.log('라이브러리 로딩 대기 중...');
+            setTimeout(checkAndInit, 1000);
+        } else {
+            console.warn('일부 라이브러리가 로드되지 않았지만 초기화를 진행합니다');
+            initializeEventListeners();
+        }
+    }
+    
+    checkAndInit();
+}
+
+// 브라우저 지원 확인 (대체 방법 포함)
+function checkBrowserSupport() {
+    const features = {
+        fileReader: typeof FileReader !== 'undefined',
+        canvas: typeof HTMLCanvasElement !== 'undefined',
+        pdfjs: typeof pdfjsLib !== 'undefined',
+        pdflib: typeof PDFLib !== 'undefined',
+        gifuct: typeof gifuct !== 'undefined'
+    };
+
+    console.log('=== 브라우저 지원 확인 ===');
+    Object.entries(features).forEach(([name, supported]) => {
+        console.log(`${name}: ${supported ? '✅' : '❌'}`);
+    });
+    
+    // 필수 라이브러리 확인
+    const criticalLibs = ['fileReader', 'canvas', 'pdfjs', 'pdflib'];
+    const criticalMissing = criticalLibs.filter(lib => !features[lib]);
+    
+    if (criticalMissing.length > 0) {
+        console.error('❌ 필수 기능이 누락되었습니다:', criticalMissing);
+        alert('브라우저가 필요한 기능을 지원하지 않습니다. 최신 브라우저를 사용해주세요.');
+        return false;
+    }
+    
+    if (!features.gifuct) {
+        console.warn('⚠️ gifuct-js 라이브러리가 로드되지 않았습니다');
+        console.log('정적 이미지 처리로 대체됩니다');
+    }
+    
+    console.log('✅ 브라우저 지원 확인 완료');
+    return true;
+}
+
+// 이벤트 리스너 초기화
+function initializeEventListeners() {
+    console.log('이벤트 리스너 초기화 시작');
     
     // 필수 요소 존재 확인
     if (!elements.selectFileBtn || !elements.pdfInput || !elements.pdfUploadBox) {
@@ -1325,139 +1460,4 @@ window.debugChromeCompatiblePdfGif = debugInfo;
 setTimeout(() => {
     console.log('=== 초기화 완료 후 상태 ===');
     debugInfo();
-}, 3000);// 전역 변수
-let currentPdfFile = null;
-let originalPdfDoc = null;
-let renderPdfDoc = null;
-let pdfPages = [];
-let selectedPageIndex = -1;
-let gifFile = null;
-let gifFrames = [];
-let gifPosition = { x: 50, y: 50, width: 100, height: 100 };
-let isDragging = false;
-let isResizing = false;
-let dragStart = { x: 0, y: 0 };
-let resizeHandle = null;
-let generatedPdfUrl = null;
-let isUploadInProgress = false;
-
-// DOM 요소 가져오기
-function getElements() {
-    return {
-        pdfInput: document.getElementById('pdfInput'),
-        selectFileBtn: document.getElementById('selectFileBtn'),
-        pdfUploadBox: document.getElementById('pdfUploadBox'),
-        uploadSection: document.getElementById('uploadSection'),
-        workspace: document.getElementById('workspace'),
-        pageSelector: document.getElementById('pageSelector'),
-        pagesGrid: document.getElementById('pagesGrid'),
-        btnSelectPage: document.getElementById('btnSelectPage'),
-        gifPositionEditor: document.getElementById('gifPositionEditor'),
-        gifInput: document.getElementById('gifInput'),
-        gifUploadArea: document.getElementById('gifUploadArea'),
-        gifOverlay: document.getElementById('gifOverlay'),
-        gifPreviewElement: document.getElementById('gifPreviewElement'),
-        pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
-        pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
-        btnGeneratePdf: document.getElementById('btnGeneratePdf'),
-        processingOverlay: document.getElementById('processingOverlay'),
-        completionScreen: document.getElementById('completionScreen'),
-        progressFill: document.getElementById('progressFill'),
-        progressText: document.getElementById('progressText'),
-        autoPlay: document.getElementById('autoPlay'),
-        speedControl: document.getElementById('speedControl'),
-        speedDisplay: document.getElementById('speedDisplay'),
-        asciiResolution: document.getElementById('asciiResolution')
-    };
-}
-
-let elements = null;
-
-// DOM 로드 완료 시 초기화
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== 크롬 호환 PDF GIF 생성기 초기화 (대체 버전) ===');
-    
-    // DOM 요소 초기화
-    elements = getElements();
-    
-    // 필수 요소 존재 확인
-    console.log('DOM 요소 확인:');
-    console.log('- pdfInput:', !!elements.pdfInput);
-    console.log('- selectFileBtn:', !!elements.selectFileBtn);
-    console.log('- pdfUploadBox:', !!elements.pdfUploadBox);
-    
-    if (!elements.pdfInput || !elements.selectFileBtn || !elements.pdfUploadBox) {
-        console.error('필수 DOM 요소가 없습니다');
-        alert('페이지 로딩 문제가 발생했습니다. 새로고침해주세요.');
-        return;
-    }
-    
-    console.log('DOM 요소 확인 완료');
-    
-    // 라이브러리 확인 후 초기화
-    waitForLibrariesAndInitialize();
-});
-
-// 라이브러리 로딩 대기 및 초기화
-function waitForLibrariesAndInitialize() {
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    function checkAndInit() {
-        attempts++;
-        console.log(`라이브러리 확인 시도 ${attempts}/${maxAttempts}`);
-        
-        const librariesReady = checkBrowserSupport();
-        
-        if (librariesReady) {
-            console.log('모든 라이브러리 준비 완료, 초기화 진행');
-            initializeEventListeners();
-        } else if (attempts < maxAttempts) {
-            console.log('라이브러리 로딩 대기 중...');
-            setTimeout(checkAndInit, 1000);
-        } else {
-            console.warn('일부 라이브러리가 로드되지 않았지만 초기화를 진행합니다');
-            initializeEventListeners();
-        }
-    }
-    
-    checkAndInit();
-}
-
-// 브라우저 지원 확인 (대체 방법 포함)
-function checkBrowserSupport() {
-    const features = {
-        fileReader: typeof FileReader !== 'undefined',
-        canvas: typeof HTMLCanvasElement !== 'undefined',
-        pdfjs: typeof pdfjsLib !== 'undefined',
-        pdflib: typeof PDFLib !== 'undefined',
-        gifuct: typeof gifuct !== 'undefined'
-    };
-
-    console.log('=== 브라우저 지원 확인 ===');
-    Object.entries(features).forEach(([name, supported]) => {
-        console.log(`${name}: ${supported ? '✅' : '❌'}`);
-    });
-    
-    // 필수 라이브러리 확인
-    const criticalLibs = ['fileReader', 'canvas', 'pdfjs', 'pdflib'];
-    const criticalMissing = criticalLibs.filter(lib => !features[lib]);
-    
-    if (criticalMissing.length > 0) {
-        console.error('❌ 필수 기능이 누락되었습니다:', criticalMissing);
-        alert('브라우저가 필요한 기능을 지원하지 않습니다. 최신 브라우저를 사용해주세요.');
-        return false;
-    }
-    
-    if (!features.gifuct) {
-        console.warn('⚠️ gifuct-js 라이브러리가 로드되지 않았습니다');
-        console.log('정적 이미지 처리로 대체됩니다');
-    }
-    
-    console.log('✅ 브라우저 지원 확인 완료');
-    return true;
-}
-
-// 이벤트 리스너 초기화
-function initializeEventListeners() {
-    console.
+}, 3000);
