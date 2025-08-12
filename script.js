@@ -1,109 +1,4 @@
-// 전역 변수
-let currentPdfFile = null;
-let originalPdfDoc = null;
-let renderPdfDoc = null;
-let pdfPages = [];
-let selectedPageIndex = -1;
-let gifFile = null;
-let gifFrames = [];
-let gifPosition = { x: 50, y: 50, width: 100, height: 100 };
-let isDragging = false;
-let isResizing = false;
-let dragStart = { x: 0, y: 0 };
-let resizeHandle = null;
-let generatedPdfUrl = null;
-let isUploadInProgress = false;
-
-// DOM 요소 가져오기
-function getElements() {
-    return {
-        pdfInput: document.getElementById('pdfInput'),
-        selectFileBtn: document.getElementById('selectFileBtn'),
-        pdfUploadBox: document.getElementById('pdfUploadBox'),
-        uploadSection: document.getElementById('uploadSection'),
-        workspace: document.getElementById('workspace'),
-        pageSelector: document.getElementById('pageSelector'),
-        pagesGrid: document.getElementById('pagesGrid'),
-        btnSelectPage: document.getElementById('btnSelectPage'),
-        gifPositionEditor: document.getElementById('gifPositionEditor'),
-        gifInput: document.getElementById('gifInput'),
-        gifUploadArea: document.getElementById('gifUploadArea'),
-        gifOverlay: document.getElementById('gifOverlay'),
-        gifPreviewElement: document.getElementById('gifPreviewElement'),
-        pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
-        pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
-        btnGeneratePdf: document.getElementById('btnGeneratePdf'),
-        processingOverlay: document.getElementById('processingOverlay'),
-        completionScreen: document.getElementById('completionScreen'),
-        progressFill: document.getElementById('progressFill'),
-        progressText: document.getElementById('progressText'),
-        autoPlay: document.getElementById('autoPlay'),
-        speedControl: document.getElementById('speedControl'),
-        speedDisplay: document.getElementById('speedDisplay'),
-        asciiResolution: document.getElementById('asciiResolution')
-    };
-}
-
-let elements = null;
-
-// DOM 로드 완료 시 초기화
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== 크롬 호환 PDF GIF 생성기 초기화 ===');
-    
-    // DOM 요소 초기화
-    elements = getElements();
-    
-    // 필수 요소 존재 확인
-    console.log('DOM 요소 확인:');
-    console.log('- pdfInput:', !!elements.pdfInput);
-    console.log('- selectFileBtn:', !!elements.selectFileBtn);
-    console.log('- pdfUploadBox:', !!elements.pdfUploadBox);
-    
-    if (!elements.pdfInput || !elements.selectFileBtn || !elements.pdfUploadBox) {
-        console.error('필수 DOM 요소가 없습니다');
-        alert('페이지 로딩 문제가 발생했습니다. 새로고침해주세요.');
-        return;
-    }
-    
-    console.log('DOM 요소 확인 완료');
-    
-    initializeEventListeners();
-    checkBrowserSupport();
-});
-
-// 브라우저 지원 확인
-function checkBrowserSupport() {
-    const features = {
-        fileReader: typeof FileReader !== 'undefined',
-        canvas: typeof HTMLCanvasElement !== 'undefined',
-        pdfjs: typeof pdfjsLib !== 'undefined',
-        pdflib: typeof PDFLib !== 'undefined',
-        gifuct: typeof gifuct !== 'undefined'
-    };
-
-    console.log('=== 브라우저 지원 확인 ===');
-    Object.entries(features).forEach(([name, supported]) => {
-        console.log(`${name}: ${supported ? '✅' : '❌'}`);
-    });
-    
-    if (!features.gifuct) {
-        console.warn('⚠️ gifuct-js 라이브러리가 로드되지 않았습니다');
-        console.log('정적 이미지 처리로 대체됩니다');
-    }
-    
-    if (!features.fileReader || !features.canvas || !features.pdfjs || !features.pdflib) {
-        console.error('❌ 필수 기능이 누락되었습니다');
-        alert('브라우저가 필요한 기능을 지원하지 않습니다. 최신 브라우저를 사용해주세요.');
-        return false;
-    }
-    
-    console.log('✅ 브라우저 지원 확인 완료');
-    return true;
-}
-
-// 이벤트 리스너 초기화
-function initializeEventListeners() {
-    console.log('이벤트 리스너 초기화 시작');
+console.log('이벤트 리스너 초기화 시작');
     
     // 필수 요소 존재 확인
     if (!elements.selectFileBtn || !elements.pdfInput || !elements.pdfUploadBox) {
@@ -302,6 +197,12 @@ function handleDrop(e) {
 async function loadPdf(file) {
     console.log('PDF 로드 시작:', file.name);
     
+    // PDF.js 라이브러리 확인
+    if (typeof pdfjsLib === 'undefined') {
+        alert('PDF 처리 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+        return;
+    }
+    
     showProcessing('PDF 분석 중...', 'PDF 정보를 읽고 있습니다');
     updateProgress(10);
     
@@ -309,9 +210,13 @@ async function loadPdf(file) {
         currentPdfFile = file;
         const arrayBuffer = await file.arrayBuffer();
         
-        // PDF-lib로 로드 (편집용)
-        originalPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-        console.log('PDF-lib 로드 성공');
+        // PDF-lib로 로드 (편집용) - 라이브러리 확인
+        if (typeof PDFLib !== 'undefined') {
+            originalPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            console.log('PDF-lib 로드 성공');
+        } else {
+            throw new Error('PDF-lib 라이브러리가 로드되지 않았습니다');
+        }
         updateProgress(30);
         
         // PDF.js로 로드 (렌더링용)
@@ -499,7 +404,14 @@ async function handleGifUpload(e) {
         
         try {
             gifFile = file;
-            gifFrames = await extractGifFramesWithGifuct(file);
+            // gifuct-js 사용 가능 여부에 따라 처리 방법 결정
+            if (typeof gifuct !== 'undefined') {
+                console.log('gifuct-js 사용하여 GIF 처리');
+                gifFrames = await extractGifFramesWithGifuct(file);
+            } else {
+                console.log('gifuct-js 없음, 대체 방법 사용');
+                gifFrames = await extractGifFramesFallback(file);
+            }
             updateProgress(60);
             
             const reader = new FileReader();
@@ -537,80 +449,77 @@ async function extractGifFramesWithGifuct(gifFile) {
         
         console.log('GIF 파일 로드 완료, 크기:', uint8Array.length, 'bytes');
         
-        // gifuct-js 사용
-        if (typeof gifuct !== 'undefined') {
-            try {
-                const gif = gifuct.parseGIF(uint8Array);
-                const frames = gifuct.decompressFrames(gif, true); // buildPatch=true
+        const gif = gifuct.parseGIF(uint8Array);
+        const frames = gifuct.decompressFrames(gif, true); // buildPatch=true
+        
+        console.log(`GIF 파싱 성공: ${frames.length} 프레임 감지`);
+        
+        if (frames.length > 1) {
+            console.log('멀티 프레임 GIF 감지, 프레임 추출 중...');
+            
+            const maxFrames = 15;
+            const take = Math.min(frames.length, maxFrames);
+            const W = gif.lsd.width;
+            const H = gif.lsd.height;
+            
+            const extractedFrames = [];
+            
+            for (let i = 0; i < take; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = W;
+                canvas.height = H;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 
-                console.log(`GIF 파싱 성공: ${frames.length} 프레임 감지`);
+                // 흰 배경으로 합성
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, W, H);
                 
-                if (frames.length > 1) {
-                    console.log('멀티 프레임 GIF 감지, 프레임 추출 중...');
+                const imgData = ctx.createImageData(W, H);
+                imgData.data.set(frames[i].patch);
+                ctx.putImageData(imgData, 0, 0);
+                
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png', 1.0);
+                });
+                
+                if (blob) {
+                    const frameBuffer = await blob.arrayBuffer();
+                    extractedFrames.push({
+                        data: frameBuffer,
+                        dataUrl: canvas.toDataURL('image/png'),
+                        delay: Math.max((frames[i].delay || 10) * 10, 100)
+                    });
                     
-                    const maxFrames = 15;
-                    const take = Math.min(frames.length, maxFrames);
-                    const W = gif.lsd.width;
-                    const H = gif.lsd.height;
-                    
-                    const extractedFrames = [];
-                    
-                    for (let i = 0; i < take; i++) {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = W;
-                        canvas.height = H;
-                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                        
-                        // 흰 배경으로 합성
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, 0, W, H);
-                        
-                        const imgData = ctx.createImageData(W, H);
-                        imgData.data.set(frames[i].patch);
-                        ctx.putImageData(imgData, 0, 0);
-                        
-                        const blob = await new Promise(resolve => {
-                            canvas.toBlob(resolve, 'image/png', 1.0);
-                        });
-                        
-                        if (blob) {
-                            const frameBuffer = await blob.arrayBuffer();
-                            extractedFrames.push({
-                                data: frameBuffer,
-                                dataUrl: canvas.toDataURL('image/png'),
-                                delay: Math.max((frames[i].delay || 10) * 10, 100)
-                            });
-                            
-                            console.log(`프레임 ${i} 추출 성공`);
-                        }
-                    }
-                    
-                    if (extractedFrames.length > 1) {
-                        console.log(`성공적으로 ${extractedFrames.length} 프레임 추출 완료`);
-                        return extractedFrames;
-                    } else {
-                        console.log('프레임 추출 실패, 정적 이미지로 대체');
-                    }
-                } else {
-                    console.log('단일 프레임 GIF 감지');
+                    console.log(`프레임 ${i} 추출 성공`);
                 }
-                
-            } catch (gifuctError) {
-                console.error('gifuct-js 파싱 실패:', gifuctError);
-                console.log('대체 방법으로 처리 시도');
+            }
+            
+            if (extractedFrames.length > 1) {
+                console.log(`성공적으로 ${extractedFrames.length} 프레임 추출 완료`);
+                return extractedFrames;
+            } else {
+                console.log('프레임 추출 실패, 정적 이미지로 대체');
             }
         } else {
-            console.log('gifuct-js 라이브러리 없음, 대체 방법 사용');
+            console.log('단일 프레임 GIF 감지');
         }
         
-        // 대체: 정적 이미지로 처리
-        console.log('정적 이미지로 처리');
+        // 단일 프레임 처리
         return await createStaticFrame(gifFile);
         
     } catch (error) {
-        console.error('GIF 처리 완전 실패:', error);
-        throw new Error('GIF 파일을 처리할 수 없습니다: ' + error.message);
+        console.error('gifuct-js 처리 실패:', error);
+        console.log('대체 방법으로 시도');
+        return await createStaticFrame(gifFile);
     }
+}
+
+// 대체 GIF 프레임 추출 방법 (gifuct-js 없이)
+async function extractGifFramesFallback(gifFile) {
+    console.log('대체 GIF 처리 방법 사용');
+    
+    // 정적 이미지로만 처리
+    return await createStaticFrame(gifFile);
 }
 
 // 정적 프레임 생성
@@ -814,6 +723,12 @@ async function generateCompatiblePdf() {
         return;
     }
     
+    // PDF-lib 라이브러리 확인
+    if (typeof PDFLib === 'undefined') {
+        alert('PDF 생성 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+        return;
+    }
+    
     showProcessing('크롬 호환 PDF 생성 중...', '텍스트 필드 프레임버퍼 애니메이션 생성');
     updateProgress(5);
     updateStep(4);
@@ -838,7 +753,7 @@ async function generateCompatiblePdf() {
     }
 }
 
-// ASCII 애니메이션 PDF 생성
+// ASCII 애니메이션 PDF 생성 (간소화된 버전)
 async function generateAsciiAnimationPdf() {
     try {
         console.log('ASCII 애니메이션 PDF 생성 시작');
@@ -854,10 +769,15 @@ async function generateAsciiAnimationPdf() {
             const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
             const addedPage = newPdfDoc.addPage(copiedPage);
             
-            // 선택된 페이지에 ASCII 애니메이션 추가
+            // 선택된 페이지에 처리 추가
             if (i === selectedPageIndex) {
-                console.log(`페이지 ${i + 1}에 ASCII 애니메이션 추가`);
-                await addAsciiAnimation(newPdfDoc, addedPage, i);
+                console.log(`페이지 ${i + 1}에 애니메이션 추가`);
+                if (gifFrames.length > 1) {
+                    await addAsciiAnimation(newPdfDoc, addedPage, i);
+                } else {
+                    // 단일 프레임은 정적 이미지로
+                    await addStaticImage(newPdfDoc, addedPage, i);
+                }
             }
             
             updateProgress(10 + (i + 1) / originalPages.length * 70);
@@ -865,30 +785,13 @@ async function generateAsciiAnimationPdf() {
         
         // 전역 JavaScript 추가
         const globalJS = `
-console.println("크롬 호환 ASCII 애니메이션 PDF 로드됨");
-
-function debugAsciiAnimation() {
-    if (typeof AsciiAnimation !== 'undefined') {
-        console.println("=== ASCII 애니메이션 디버그 ===");
-        console.println("현재 프레임: " + AsciiAnimation.currentFrame);
-        console.println("총 프레임: " + AsciiAnimation.totalFrames);
-        console.println("재생 중: " + AsciiAnimation.isPlaying);
-        console.println("자동 재생: " + AsciiAnimation.autoPlay);
-        console.println("==========================");
-    } else {
-        console.println("AsciiAnimation이 아직 초기화되지 않음");
-    }
-}
-
-function testAsciiFrame() {
-    if (typeof AsciiAnimation !== 'undefined') {
-        console.println("수동 프레임 전환 테스트");
-        AsciiAnimation.nextFrame();
-    }
+console.println("크롬 호환 PDF 로드됨");
+function debugAnimation() {
+    console.println("애니메이션 디버그 정보");
 }
 `;
         
-        newPdfDoc.addJavaScript('GlobalAsciiAnimationSystem', globalJS);
+        newPdfDoc.addJavaScript('GlobalSystem', globalJS);
         updateProgress(85);
         
         // PDF 저장
@@ -912,12 +815,11 @@ function testAsciiFrame() {
     }
 }
 
-// ASCII 애니메이션 추가
-async function addAsciiAnimation(pdfDoc, page, pageIndex) {
+// 정적 이미지 추가 (단일 프레임용)
+async function addStaticImage(pdfDoc, page, pageIndex) {
     try {
-        console.log('ASCII 애니메이션 추가 시작');
+        console.log('정적 이미지 추가');
         
-        // 페이지 크기 계산
         const { width: pageWidth, height: pageHeight } = page.getSize();
         const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
         const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
@@ -927,24 +829,53 @@ async function addAsciiAnimation(pdfDoc, page, pageIndex) {
         const pdfWidth = gifPosition.width * scaleX;
         const pdfHeight = gifPosition.height * scaleY;
         
-        console.log('애니메이션 위치:', { pdfX, pdfY, pdfWidth, pdfHeight });
+        const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+        page.drawImage(embeddedImage, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+        });
         
-        // ASCII 해상도 설정
-        const resolution = elements.asciiResolution?.value?.split('x') || ['60', '30'];
+        console.log('정적 이미지 추가 완료');
+        return true;
+        
+    } catch (error) {
+        console.error('정적 이미지 추가 실패:', error);
+        return false;
+    }
+}
+
+// ASCII 애니메이션 추가 (간소화)
+async function addAsciiAnimation(pdfDoc, page, pageIndex) {
+    try {
+        console.log('간소화된 ASCII 애니메이션 추가');
+        
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        // 해상도 설정
+        const resolution = elements.asciiResolution?.value?.split('x') || ['40', '20'];
         const asciiCols = parseInt(resolution[0]);
         const asciiRows = parseInt(resolution[1]);
         
         console.log(`ASCII 해상도: ${asciiCols}x${asciiRows}`);
         
-        // GIF 프레임을 ASCII로 변환
-        const asciiFrames = await convertFramesToAscii(gifFrames, asciiCols, asciiRows);
+        // 간단한 ASCII 변환
+        const asciiFrames = await convertFramesToAsciiSimple(gifFrames, asciiCols, asciiRows);
         updateProgress(50);
         
+        const form = pdfDoc.getForm();
+        
         if (asciiFrames.length === 1) {
-            // 단일 프레임 - 정적 텍스트로 표시
-            const form = pdfDoc.getForm();
-            const textField = form.createTextField(`static_ascii_${pageIndex}`);
-            
+            // 단일 텍스트 필드
+            const textField = form.createTextField(`ascii_${pageIndex}`);
             textField.addToPage(page, {
                 x: pdfX,
                 y: pdfY,
@@ -952,170 +883,75 @@ async function addAsciiAnimation(pdfDoc, page, pageIndex) {
                 height: pdfHeight,
                 backgroundColor: PDFLib.rgb(1, 1, 1),
                 borderWidth: 1,
-                borderColor: PDFLib.rgb(0.7, 0.7, 0.7),
                 multiline: true,
-                fontSize: Math.max(6, Math.min(pdfWidth / asciiCols, pdfHeight / asciiRows))
+                fontSize: Math.max(4, Math.min(pdfWidth / asciiCols, pdfHeight / asciiRows))
             });
-            
             textField.setText(asciiFrames[0]);
-            console.log('정적 ASCII 텍스트 추가 완료');
-            return;
-        }
-        
-        // 멀티 프레임 - 각 행에 대해 텍스트 필드 생성
-        const form = pdfDoc.getForm();
-        const rowHeight = pdfHeight / asciiRows;
-        const fontSize = Math.max(4, Math.min(pdfWidth / asciiCols, rowHeight * 0.8));
-        
-        console.log(`${asciiRows}개 행 텍스트 필드 생성, 폰트 크기: ${fontSize}`);
-        
-        // 각 행에 대해 텍스트 필드 생성
-        for (let row = 0; row < asciiRows; row++) {
-            const textField = form.createTextField(`ascii_row_${pageIndex}_${row}`);
             
-            textField.addToPage(page, {
+        } else {
+            // 멀티 프레임 - 단순화된 버전
+            const fontSize = Math.max(4, Math.min(pdfWidth / asciiCols, pdfHeight / asciiRows));
+            
+            // 메인 텍스트 필드 하나만 사용
+            const mainField = form.createTextField(`ascii_main_${pageIndex}`);
+            mainField.addToPage(page, {
                 x: pdfX,
-                y: pdfY + (asciiRows - row - 1) * rowHeight,
+                y: pdfY,
                 width: pdfWidth,
-                height: rowHeight,
+                height: pdfHeight,
                 backgroundColor: PDFLib.rgb(1, 1, 1),
-                borderWidth: 0,
+                borderWidth: 1,
+                multiline: true,
                 fontSize: fontSize
             });
             
-            // 첫 번째 프레임의 해당 행으로 초기화
-            const firstFrameLines = asciiFrames[0].split('\n');
-            textField.setText(firstFrameLines[row] || '');
-        }
-        
-        // 애니메이션 제어 JavaScript
-        const animationScript = `
-console.println("ASCII 애니메이션 시스템 로드됨 - 페이지 ${pageIndex}");
+            // 첫 번째 프레임으로 초기화
+            mainField.setText(asciiFrames[0]);
+            
+            // 간단한 애니메이션 스크립트
+            const animationScript = `
+console.println("간소화된 ASCII 애니메이션 로드됨");
 
-var AsciiAnimation = {
-    pageIndex: ${pageIndex},
-    currentFrame: 0,
-    totalFrames: ${asciiFrames.length},
-    frameDelay: ${parseInt(elements.speedControl?.value) || 300},
-    autoPlay: ${elements.autoPlay?.checked || false},
-    isPlaying: false,
-    animationTimer: null,
-    rows: ${asciiRows},
+var SimpleAnim = {
+    frames: [${asciiFrames.map(frame => `"${frame.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`).join(', ')}],
+    current: 0,
+    field: "ascii_main_${pageIndex}",
     
-    frameData: [${asciiFrames.map(frame => {
-        const lines = frame.split('\n');
-        return `[${lines.map(line => `"${line.replace(/"/g, '\\"')}"`).join(', ')}]`;
-    }).join(', ')}],
-    
-    init: function() {
-        console.println("ASCII 애니메이션 초기화");
-        this.currentFrame = 0;
-        this.showFrame(0);
-        
-        if (this.autoPlay && this.totalFrames > 1) {
-            var self = this;
-            app.setTimeOut("AsciiAnimation.startAnimation()", 1000);
-        }
+    next: function() {
+        this.current = (this.current + 1) % this.frames.length;
+        var f = this.getField(this.field);
+        if (f) f.value = this.frames[this.current];
     },
     
-    showFrame: function(frameIndex) {
-        console.println("ASCII 프레임 표시: " + frameIndex);
-        
-        try {
-            var frameLines = this.frameData[frameIndex];
-            for (var row = 0; row < this.rows; row++) {
-                var fieldName = "ascii_row_" + this.pageIndex + "_" + row;
-                var field = this.getField(fieldName);
-                if (field && frameLines[row] !== undefined) {
-                    field.value = frameLines[row];
-                }
-            }
-        } catch (e) {
-            console.println("프레임 표시 오류: " + e.message);
-        }
-    },
-    
-    nextFrame: function() {
-        var oldFrame = this.currentFrame;
-        this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
-        
-        console.println("프레임 전환: " + oldFrame + " -> " + this.currentFrame);
-        
-        this.showFrame(this.currentFrame);
-        
-        if (this.isPlaying && this.autoPlay) {
-            var self = this;
-            this.animationTimer = app.setTimeOut("AsciiAnimation.nextFrame()", this.frameDelay);
-        }
-    },
-    
-    startAnimation: function() {
-        console.println("ASCII 애니메이션 시작");
-        this.isPlaying = true;
-        
-        if (this.animationTimer) {
-            app.clearTimeOut(this.animationTimer);
-        }
-        
-        if (this.totalFrames > 1) {
-            var self = this;
-            this.animationTimer = app.setTimeOut("AsciiAnimation.nextFrame()", this.frameDelay);
-        }
-        
-        return "Stop Animation";
-    },
-    
-    stopAnimation: function() {
-        console.println("ASCII 애니메이션 정지");
-        this.isPlaying = false;
-        
-        if (this.animationTimer) {
-            app.clearTimeOut(this.animationTimer);
-            this.animationTimer = null;
-        }
-        
-        return "Play Animation";
-    },
-    
-    toggleAnimation: function() {
-        if (this.isPlaying) {
-            return this.stopAnimation();
-        } else {
-            return this.startAnimation();
-        }
+    start: function() {
+        var self = this;
+        app.setInterval("SimpleAnim.next()", ${parseInt(elements.speedControl?.value) || 500});
     }
 };
 
-app.setTimeOut("AsciiAnimation.init()", 1500);
+if (${elements.autoPlay?.checked || false}) {
+    app.setTimeOut("SimpleAnim.start()", 1000);
+}
 `;
-        
-        // JavaScript를 PDF에 추가
-        pdfDoc.addJavaScript(`AsciiAnimation_${pageIndex}`, animationScript);
-        
-        // 제어 버튼 추가 (자동재생이 아닌 경우)
-        if (!elements.autoPlay?.checked) {
-            const controlBtn = form.createButton(`ascii_control_${pageIndex}`);
             
-            controlBtn.addToPage(page, {
-                x: pdfX,
-                y: pdfY - 40,
-                width: Math.min(pdfWidth, 100),
-                height: 30,
-                backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8),
-                borderColor: PDFLib.rgb(0.1, 0.2, 0.6),
-                borderWidth: 1
-            });
+            pdfDoc.addJavaScript(`SimpleAnim_${pageIndex}`, animationScript);
             
-            try {
-                controlBtn.setAction(
-                    PDFLib.PDFAction.createJavaScript(`
-                        var newCaption = AsciiAnimation.toggleAnimation();
-                        this.buttonSetCaption(newCaption);
-                    `)
-                );
-                console.log('ASCII 제어 버튼 추가 완료');
-            } catch (actionError) {
-                console.log('버튼 액션 설정 실패:', actionError.message);
+            // 컨트롤 버튼
+            if (!elements.autoPlay?.checked) {
+                const btn = form.createButton(`play_${pageIndex}`);
+                btn.addToPage(page, {
+                    x: pdfX,
+                    y: pdfY - 35,
+                    width: 80,
+                    height: 25,
+                    backgroundColor: PDFLib.rgb(0.2, 0.4, 0.8)
+                });
+                
+                try {
+                    btn.setAction(PDFLib.PDFAction.createJavaScript(`SimpleAnim.start();`));
+                } catch (e) {
+                    console.log('버튼 액션 설정 실패');
+                }
             }
         }
         
@@ -1124,26 +960,156 @@ app.setTimeOut("AsciiAnimation.init()", 1500);
         
     } catch (error) {
         console.error('ASCII 애니메이션 추가 실패:', error);
-        
         // 대체: 첫 번째 프레임을 정적 이미지로
+        return await addStaticImage(pdfDoc, page, pageIndex);
+    }
+}
+
+// 간단한 ASCII 변환
+async function convertFramesToAsciiSimple(frames, cols, rows) {
+    console.log(`${frames.length} 프레임을 간단 ASCII로 변환`);
+    
+    const chars = ' .:-=+*#%@';
+    const asciiFrames = [];
+    
+    for (let i = 0; i < Math.min(frames.length, 10); i++) {
         try {
-            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
-            const { width: pageWidth, height: pageHeight } = page.getSize();
-            const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
-            const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
-            
-            page.drawImage(embeddedImage, {
-                x: gifPosition.x * scaleX,
-                y: pageHeight - (gifPosition.y + gifPosition.height) * scaleY,
-                width: gifPosition.width * scaleX,
-                height: gifPosition.height * scaleY,
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = frames[i].dataUrl;
             });
             
-            console.log('대체 정적 이미지 추가 완료');
-        } catch (fallbackError) {
-            console.error('대체 이미지도 실패:', fallbackError);
+            const canvas = document.createElement('canvas');
+            canvas.width = cols;
+            canvas.height = rows;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.drawImage(img, 0, 0, cols, rows);
+            const imageData = ctx.getImageData(0, 0, cols, rows);
+            const pixels = imageData.data;
+            
+            let ascii = '';
+            for (let y = 0; y < rows; y++) {
+                let line = '';
+                for (let x = 0; x < cols; x++) {
+                    const offset = (y * cols + x) * 4;
+                    const r = pixels[offset];
+                    const g = pixels[offset + 1];
+                    const b = pixels[offset + 2];
+                    
+                    const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+                    const charIndex = Math.floor(brightness * (chars.length - 1));
+                    line += chars[charIndex];
+                }
+                ascii += line + (y < rows - 1 ? '\n' : '');
+            }
+            
+            asciiFrames.push(ascii);
+            
+        } catch (error) {
+            console.error(`프레임 ${i} 변환 실패:`, error);
+            asciiFrames.push(' '.repeat(cols * rows));
+        }
+    }
+    
+    return asciiFrames;
+}
+
+// 버튼 애니메이션 PDF 생성 (간소화)
+async function generateButtonAnimationPdf() {
+    try {
+        console.log('간소화된 버튼 애니메이션 PDF 생성');
+        
+        const newPdfDoc = await PDFLib.PDFDocument.create();
+        const originalPages = originalPdfDoc.getPages();
+        
+        updateProgress(10);
+        
+        // 모든 페이지 복사
+        for (let i = 0; i < originalPages.length; i++) {
+            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+            const addedPage = newPdfDoc.addPage(copiedPage);
+            
+            if (i === selectedPageIndex) {
+                await addButtonAnimationSimple(newPdfDoc, addedPage, i);
+            }
+            
+            updateProgress(10 + (i + 1) / originalPages.length * 80);
         }
         
+        // PDF 저장
+        const pdfBytes = await newPdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        
+        if (generatedPdfUrl) {
+            URL.revokeObjectURL(generatedPdfUrl);
+        }
+        generatedPdfUrl = URL.createObjectURL(blob);
+        
+        updateProgress(100);
+        setTimeout(() => {
+            hideProcessing();
+            showCompletionScreen();
+        }, 500);
+        
+    } catch (error) {
+        console.error('버튼 애니메이션 생성 실패:', error);
+        throw error;
+    }
+}
+
+// 간소화된 버튼 애니메이션
+async function addButtonAnimationSimple(pdfDoc, page, pageIndex) {
+    try {
+        const { width: pageWidth, height: pageHeight } = page.getSize();
+        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
+        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
+        
+        const pdfX = gifPosition.x * scaleX;
+        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
+        const pdfWidth = gifPosition.width * scaleX;
+        const pdfHeight = gifPosition.height * scaleY;
+        
+        // 첫 번째 프레임을 페이지에 직접 그리기
+        const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
+        page.drawImage(embeddedImage, {
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight,
+        });
+        
+        if (gifFrames.length > 1) {
+            // 간단한 클릭 버튼 추가
+            const form = pdfDoc.getForm();
+            const nextBtn = form.createButton(`next_${pageIndex}`);
+            
+            nextBtn.addToPage(page, {
+                x: pdfX,
+                y: pdfY - 35,
+                width: 100,
+                height: 25,
+                backgroundColor: PDFLib.rgb(0.8, 0.4, 0.2)
+            });
+            
+            // 간단한 JavaScript (Acrobat 전용)
+            const script = `
+console.println("간단한 버튼 애니메이션");
+var frameIndex = 0;
+function nextFrame() {
+    frameIndex = (frameIndex + 1) % ${gifFrames.length};
+    console.println("Frame: " + frameIndex);
+}
+`;
+            pdfDoc.addJavaScript(`ButtonAnim_${pageIndex}`, script);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('버튼 애니메이션 실패:', error);
         return false;
     }
 }
@@ -1167,7 +1133,7 @@ function downloadGeneratedPdf() {
     }
     
     try {
-        const fileName = `chrome-compatible-animated-pdf-${Date.now()}.pdf`;
+        const fileName = `chrome-compatible-pdf-${Date.now()}.pdf`;
         const a = document.createElement('a');
         a.href = generatedPdfUrl;
         a.download = fileName;
@@ -1289,6 +1255,11 @@ function updateStep(step) {
 // 전역 오류 처리
 window.addEventListener('error', function(e) {
     console.error('전역 오류:', e.error);
+    if (e.error && e.error.message && e.error.message.includes('gifuct')) {
+        console.log('gifuct 관련 오류는 무시 (대체 방법 사용)');
+        return;
+    }
+    
     if (elements && elements.processingOverlay && elements.processingOverlay.style.display !== 'none') {
         hideProcessing();
         alert('예상치 못한 오류가 발생했습니다. 페이지를 새로고침해주세요.');
@@ -1297,6 +1268,14 @@ window.addEventListener('error', function(e) {
 
 window.addEventListener('unhandledrejection', function(e) {
     console.error('처리되지 않은 Promise 오류:', e.reason);
+    
+    // gifuct 관련 오류는 무시
+    if (e.reason && e.reason.toString().includes('gifuct')) {
+        console.log('gifuct 관련 Promise 오류는 무시');
+        e.preventDefault();
+        return;
+    }
+    
     e.preventDefault();
     
     if (elements && elements.processingOverlay && elements.processingOverlay.style.display !== 'none') {
@@ -1321,12 +1300,15 @@ function debugInfo() {
     console.log('GIF 위치:', gifPosition);
     console.log('생성된 PDF URL:', !!generatedPdfUrl);
     console.log('업로드 진행 중:', isUploadInProgress);
-    console.log('브라우저 지원:');
+    console.log('라이브러리 상태:');
     console.log('- FileReader:', typeof FileReader !== 'undefined');
     console.log('- Canvas:', typeof HTMLCanvasElement !== 'undefined');
     console.log('- PDF.js:', typeof pdfjsLib !== 'undefined');
     console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
     console.log('- gifuct-js:', typeof gifuct !== 'undefined');
+    if (window.PDFGIF) {
+        console.log('- 라이브러리 상태:', window.PDFGIF.status);
+    }
     console.log('DOM 요소:');
     if (elements) {
         console.log('- pdfInput:', !!elements.pdfInput);
@@ -1339,361 +1321,143 @@ function debugInfo() {
 // 전역 디버그 함수 노출
 window.debugChromeCompatiblePdfGif = debugInfo;
 
-// 즉시 디버그 정보 출력 (개발용)
+// 초기화 완료 후 디버그 정보 출력
 setTimeout(() => {
-    console.log('=== 초기화 후 디버그 정보 ===');
+    console.log('=== 초기화 완료 후 상태 ===');
     debugInfo();
-}, 2000);적 텍스트로 표시
-        try {
-            const form = pdfDoc.getForm();
-            const textField = form.createTextField(`fallback_ascii_${pageIndex}`);
-            
-            const { width: pageWidth, height: pageHeight } = page.getSize();
-            const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
-            const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
-            
-            textField.addToPage(page, {
-                x: gifPosition.x * scaleX,
-                y: pageHeight - (gifPosition.y + gifPosition.height) * scaleY,
-                width: gifPosition.width * scaleX,
-                height: gifPosition.height * scaleY,
-                backgroundColor: PDFLib.rgb(1, 1, 1),
-                borderWidth: 1
-            });
-            
-            textField.setText('ASCII 애니메이션 로드 실패');
-            console.log('대체 텍스트 추가 완료');
-        } catch (fallbackError) {
-            console.error('대체 텍스트도 실패:', fallbackError);
-        }
+}, 3000);// 전역 변수
+let currentPdfFile = null;
+let originalPdfDoc = null;
+let renderPdfDoc = null;
+let pdfPages = [];
+let selectedPageIndex = -1;
+let gifFile = null;
+let gifFrames = [];
+let gifPosition = { x: 50, y: 50, width: 100, height: 100 };
+let isDragging = false;
+let isResizing = false;
+let dragStart = { x: 0, y: 0 };
+let resizeHandle = null;
+let generatedPdfUrl = null;
+let isUploadInProgress = false;
+
+// DOM 요소 가져오기
+function getElements() {
+    return {
+        pdfInput: document.getElementById('pdfInput'),
+        selectFileBtn: document.getElementById('selectFileBtn'),
+        pdfUploadBox: document.getElementById('pdfUploadBox'),
+        uploadSection: document.getElementById('uploadSection'),
+        workspace: document.getElementById('workspace'),
+        pageSelector: document.getElementById('pageSelector'),
+        pagesGrid: document.getElementById('pagesGrid'),
+        btnSelectPage: document.getElementById('btnSelectPage'),
+        gifPositionEditor: document.getElementById('gifPositionEditor'),
+        gifInput: document.getElementById('gifInput'),
+        gifUploadArea: document.getElementById('gifUploadArea'),
+        gifOverlay: document.getElementById('gifOverlay'),
+        gifPreviewElement: document.getElementById('gifPreviewElement'),
+        pdfPreviewCanvas: document.getElementById('pdfPreviewCanvas'),
+        pdfPreviewContainer: document.getElementById('pdfPreviewContainer'),
+        btnGeneratePdf: document.getElementById('btnGeneratePdf'),
+        processingOverlay: document.getElementById('processingOverlay'),
+        completionScreen: document.getElementById('completionScreen'),
+        progressFill: document.getElementById('progressFill'),
+        progressText: document.getElementById('progressText'),
+        autoPlay: document.getElementById('autoPlay'),
+        speedControl: document.getElementById('speedControl'),
+        speedDisplay: document.getElementById('speedDisplay'),
+        asciiResolution: document.getElementById('asciiResolution')
+    };
+}
+
+let elements = null;
+
+// DOM 로드 완료 시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== 크롬 호환 PDF GIF 생성기 초기화 (대체 버전) ===');
+    
+    // DOM 요소 초기화
+    elements = getElements();
+    
+    // 필수 요소 존재 확인
+    console.log('DOM 요소 확인:');
+    console.log('- pdfInput:', !!elements.pdfInput);
+    console.log('- selectFileBtn:', !!elements.selectFileBtn);
+    console.log('- pdfUploadBox:', !!elements.pdfUploadBox);
+    
+    if (!elements.pdfInput || !elements.selectFileBtn || !elements.pdfUploadBox) {
+        console.error('필수 DOM 요소가 없습니다');
+        alert('페이지 로딩 문제가 발생했습니다. 새로고침해주세요.');
+        return;
+    }
+    
+    console.log('DOM 요소 확인 완료');
+    
+    // 라이브러리 확인 후 초기화
+    waitForLibrariesAndInitialize();
+});
+
+// 라이브러리 로딩 대기 및 초기화
+function waitForLibrariesAndInitialize() {
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    function checkAndInit() {
+        attempts++;
+        console.log(`라이브러리 확인 시도 ${attempts}/${maxAttempts}`);
         
+        const librariesReady = checkBrowserSupport();
+        
+        if (librariesReady) {
+            console.log('모든 라이브러리 준비 완료, 초기화 진행');
+            initializeEventListeners();
+        } else if (attempts < maxAttempts) {
+            console.log('라이브러리 로딩 대기 중...');
+            setTimeout(checkAndInit, 1000);
+        } else {
+            console.warn('일부 라이브러리가 로드되지 않았지만 초기화를 진행합니다');
+            initializeEventListeners();
+        }
+    }
+    
+    checkAndInit();
+}
+
+// 브라우저 지원 확인 (대체 방법 포함)
+function checkBrowserSupport() {
+    const features = {
+        fileReader: typeof FileReader !== 'undefined',
+        canvas: typeof HTMLCanvasElement !== 'undefined',
+        pdfjs: typeof pdfjsLib !== 'undefined',
+        pdflib: typeof PDFLib !== 'undefined',
+        gifuct: typeof gifuct !== 'undefined'
+    };
+
+    console.log('=== 브라우저 지원 확인 ===');
+    Object.entries(features).forEach(([name, supported]) => {
+        console.log(`${name}: ${supported ? '✅' : '❌'}`);
+    });
+    
+    // 필수 라이브러리 확인
+    const criticalLibs = ['fileReader', 'canvas', 'pdfjs', 'pdflib'];
+    const criticalMissing = criticalLibs.filter(lib => !features[lib]);
+    
+    if (criticalMissing.length > 0) {
+        console.error('❌ 필수 기능이 누락되었습니다:', criticalMissing);
+        alert('브라우저가 필요한 기능을 지원하지 않습니다. 최신 브라우저를 사용해주세요.');
         return false;
     }
-}
-
-// GIF 프레임을 ASCII로 변환
-async function convertFramesToAscii(frames, cols, rows) {
-    console.log(`${frames.length} 프레임을 ${cols}x${rows} ASCII로 변환 시작`);
     
-    const asciiChars = ' .:-=+*#%@█';
-    const asciiFrames = [];
-    
-    for (let i = 0; i < frames.length; i++) {
-        try {
-            // 이미지를 캔버스에 그리기
-            const img = new Image();
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = frames[i].dataUrl;
-            });
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = cols;
-            canvas.height = rows;
-            const ctx = canvas.getContext('2d');
-            
-            // 이미지를 ASCII 해상도로 리사이즈하여 그리기
-            ctx.drawImage(img, 0, 0, cols, rows);
-            
-            // 픽셀 데이터 가져오기
-            const imageData = ctx.getImageData(0, 0, cols, rows);
-            const pixels = imageData.data;
-            
-            // ASCII 변환
-            let asciiFrame = '';
-            for (let y = 0; y < rows; y++) {
-                let line = '';
-                for (let x = 0; x < cols; x++) {
-                    const offset = (y * cols + x) * 4;
-                    const r = pixels[offset];
-                    const g = pixels[offset + 1];
-                    const b = pixels[offset + 2];
-                    
-                    // 밝기 계산 (0-1)
-                    const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-                    
-                    // ASCII 문자 선택
-                    const charIndex = Math.floor(brightness * (asciiChars.length - 1));
-                    line += asciiChars[charIndex];
-                }
-                asciiFrame += line + (y < rows - 1 ? '\n' : '');
-            }
-            
-            asciiFrames.push(asciiFrame);
-            console.log(`프레임 ${i} ASCII 변환 완료`);
-            
-        } catch (error) {
-            console.error(`프레임 ${i} ASCII 변환 실패:`, error);
-            // 대체: 빈 프레임
-            const emptyFrame = Array(rows).fill(' '.repeat(cols)).join('\n');
-            asciiFrames.push(emptyFrame);
-        }
+    if (!features.gifuct) {
+        console.warn('⚠️ gifuct-js 라이브러리가 로드되지 않았습니다');
+        console.log('정적 이미지 처리로 대체됩니다');
     }
     
-    console.log(`ASCII 변환 완료: ${asciiFrames.length} 프레임`);
-    return asciiFrames;
+    console.log('✅ 브라우저 지원 확인 완료');
+    return true;
 }
 
-// 버튼 애니메이션 PDF 생성
-async function generateButtonAnimationPdf() {
-    try {
-        console.log('버튼 애니메이션 PDF 생성 시작 (Acrobat 전용)');
-        
-        const newPdfDoc = await PDFLib.PDFDocument.create();
-        const originalPages = originalPdfDoc.getPages();
-        
-        console.log(`${originalPages.length} 페이지 처리 중`);
-        updateProgress(10);
-        
-        // 모든 페이지 복사
-        for (let i = 0; i < originalPages.length; i++) {
-            const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
-            const addedPage = newPdfDoc.addPage(copiedPage);
-            
-            // 선택된 페이지에 버튼 애니메이션 추가
-            if (i === selectedPageIndex) {
-                console.log(`페이지 ${i + 1}에 버튼 애니메이션 추가`);
-                await addButtonAnimation(newPdfDoc, addedPage, i);
-            }
-            
-            updateProgress(10 + (i + 1) / originalPages.length * 70);
-        }
-        
-        // 전역 JavaScript 추가
-        const globalJS = `
-console.println("Acrobat 버튼 애니메이션 PDF 로드됨");
-
-function debugButtonAnimation() {
-    if (typeof ButtonAnimation !== 'undefined') {
-        console.println("=== 버튼 애니메이션 디버그 ===");
-        console.println("현재 프레임: " + ButtonAnimation.currentFrame);
-        console.println("총 프레임: " + ButtonAnimation.totalFrames);
-        console.println("재생 중: " + ButtonAnimation.isPlaying);
-        console.println("========================");
-    }
-}
-`;
-        
-        newPdfDoc.addJavaScript('GlobalButtonAnimationSystem', globalJS);
-        updateProgress(85);
-        
-        // PDF 저장
-        const pdfBytes = await newPdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        
-        if (generatedPdfUrl) {
-            URL.revokeObjectURL(generatedPdfUrl);
-        }
-        generatedPdfUrl = URL.createObjectURL(blob);
-        
-        updateProgress(100);
-        setTimeout(() => {
-            hideProcessing();
-            showCompletionScreen();
-        }, 500);
-        
-    } catch (error) {
-        console.error('버튼 애니메이션 PDF 생성 실패:', error);
-        throw error;
-    }
-}
-
-// 버튼 애니메이션 추가
-async function addButtonAnimation(pdfDoc, page, pageIndex) {
-    try {
-        console.log('버튼 애니메이션 추가 시작');
-        
-        const { width: pageWidth, height: pageHeight } = page.getSize();
-        const scaleX = pageWidth / elements.pdfPreviewCanvas.width;
-        const scaleY = pageHeight / elements.pdfPreviewCanvas.height;
-        
-        const pdfX = gifPosition.x * scaleX;
-        const pdfY = pageHeight - (gifPosition.y + gifPosition.height) * scaleY;
-        const pdfWidth = gifPosition.width * scaleX;
-        const pdfHeight = gifPosition.height * scaleY;
-        
-        if (gifFrames.length === 1) {
-            // 단일 프레임 - 정적 이미지
-            const embeddedImage = await pdfDoc.embedPng(gifFrames[0].data);
-            page.drawImage(embeddedImage, {
-                x: pdfX,
-                y: pdfY,
-                width: pdfWidth,
-                height: pdfHeight,
-            });
-            console.log('정적 이미지 추가 완료');
-            return;
-        }
-        
-        // 이미지 임베드
-        const embeddedImages = [];
-        for (let i = 0; i < gifFrames.length; i++) {
-            const embeddedImage = await pdfDoc.embedPng(gifFrames[i].data);
-            embeddedImages.push(embeddedImage);
-        }
-        
-        // 첫 번째 프레임을 페이지에 직접 그리기
-        page.drawImage(embeddedImages[0], {
-            x: pdfX,
-            y: pdfY,
-            width: pdfWidth,
-            height: pdfHeight,
-        });
-        
-        // 폼 필드 생성
-        const form = pdfDoc.getForm();
-        const frameFields = [];
-        
-        for (let i = 0; i < embeddedImages.length; i++) {
-            const fieldName = `button_frame_${pageIndex}_${i}`;
-            const button = form.createButton(fieldName);
-            
-            button.addToPage(page, {
-                x: pdfX,
-                y: pdfY,
-                width: pdfWidth,
-                height: pdfHeight,
-                borderWidth: 0
-            });
-            
-            frameFields.push(fieldName);
-        }
-        
-        // 버튼 애니메이션 JavaScript
-        const animationScript = `
-console.println("버튼 애니메이션 시스템 로드됨 - 페이지 ${pageIndex}");
-
-var ButtonAnimation = {
-    pageIndex: ${pageIndex},
-    currentFrame: 0,
-    totalFrames: ${gifFrames.length},
-    frameDelay: ${parseInt(elements.speedControl?.value) || 300},
-    autoPlay: ${elements.autoPlay?.checked || false},
-    isPlaying: false,
-    animationTimer: null,
-    frameFields: [${frameFields.map(name => `"${name}"`).join(', ')}],
-    
-    init: function() {
-        console.println("버튼 애니메이션 초기화");
-        this.hideAllFrames();
-        this.showFrame(0);
-        
-        if (this.autoPlay && this.totalFrames > 1) {
-            var self = this;
-            app.setTimeOut("ButtonAnimation.startAnimation()", 1000);
-        }
-    },
-    
-    hideAllFrames: function() {
-        for (var i = 0; i < this.totalFrames; i++) {
-            try {
-                var field = this.getField(this.frameFields[i]);
-                if (field) {
-                    field.display = display.hidden;
-                }
-            } catch (e) {
-                console.println("프레임 숨김 실패 " + i + ": " + e.message);
-            }
-        }
-    },
-    
-    showFrame: function(frameIndex) {
-        try {
-            var field = this.getField(this.frameFields[frameIndex]);
-            if (field) {
-                field.display = display.visible;
-                console.println("프레임 표시: " + frameIndex);
-            }
-        } catch (e) {
-            console.println("프레임 표시 실패 " + frameIndex + ": " + e.message);
-        }
-    },
-    
-    nextFrame: function() {
-        this.hideAllFrames();
-        this.currentFrame = (this.currentFrame + 1) % this.totalFrames;
-        this.showFrame(this.currentFrame);
-        
-        if (this.isPlaying && this.autoPlay) {
-            var self = this;
-            this.animationTimer = app.setTimeOut("ButtonAnimation.nextFrame()", this.frameDelay);
-        }
-    },
-    
-    startAnimation: function() {
-        console.println("버튼 애니메이션 시작");
-        this.isPlaying = true;
-        
-        if (this.animationTimer) {
-            app.clearTimeOut(this.animationTimer);
-        }
-        
-        if (this.totalFrames > 1) {
-            var self = this;
-            this.animationTimer = app.setTimeOut("ButtonAnimation.nextFrame()", this.frameDelay);
-        }
-        
-        return "Stop Animation";
-    },
-    
-    stopAnimation: function() {
-        console.println("버튼 애니메이션 정지");
-        this.isPlaying = false;
-        
-        if (this.animationTimer) {
-            app.clearTimeOut(this.animationTimer);
-            this.animationTimer = null;
-        }
-        
-        return "Play Animation";
-    },
-    
-    toggleAnimation: function() {
-        if (this.isPlaying) {
-            return this.stopAnimation();
-        } else {
-            return this.startAnimation();
-        }
-    }
-};
-
-app.setTimeOut("ButtonAnimation.init()", 1500);
-`;
-        
-        pdfDoc.addJavaScript(`ButtonAnimation_${pageIndex}`, animationScript);
-        
-        // 제어 버튼
-        if (!elements.autoPlay?.checked) {
-            const controlBtn = form.createButton(`button_control_${pageIndex}`);
-            
-            controlBtn.addToPage(page, {
-                x: pdfX,
-                y: pdfY - 40,
-                width: Math.min(pdfWidth, 100),
-                height: 30,
-                backgroundColor: PDFLib.rgb(0.8, 0.4, 0.2),
-                borderColor: PDFLib.rgb(0.6, 0.2, 0.1),
-                borderWidth: 1
-            });
-            
-            try {
-                controlBtn.setAction(
-                    PDFLib.PDFAction.createJavaScript(`
-                        var newCaption = ButtonAnimation.toggleAnimation();
-                        this.buttonSetCaption(newCaption);
-                    `)
-                );
-                console.log('버튼 제어 버튼 추가 완료');
-            } catch (actionError) {
-                console.log('버튼 액션 설정 실패:', actionError.message);
-            }
-        }
-        
-        console.log('버튼 애니메이션 설정 완료');
-        return true;
-        
-    } catch (error) {
-        console.error('버튼 애니메이션 추가 실패:', error);
-        
-        // 대체: 첫 번째 프레임을 정
+// 이벤트 리스너 초기화
+function initializeEventListeners() {
+    console.
