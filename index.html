@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF GIF - 크롬 호환 애니메이션 PDF 생성</title>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <meta name="description" content="크롬 브라우저 PDF 뷰어에서 작동하는 텍스트 기반 애니메이션 PDF를 생성하세요.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -12,18 +14,20 @@
     <div class="container">
         <!-- 헤더 -->
         <header class="header">
-            <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                    <rect width="32" height="32" rx="8" fill="#4F46E5"/>
-                    <path d="M8 12H24M8 16H20M8 20H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                    <circle cx="24" cy="20" r="4" fill="#60A5FA"/>
-                </svg>
-                <span>PDF GIF</span>
+            <div class="container">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                        <rect width="32" height="32" rx="8" fill="#4F46E5"/>
+                        <path d="M8 12H24M8 16H20M8 20H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="24" cy="20" r="4" fill="#60A5FA"/>
+                    </svg>
+                    <span>PDF GIF</span>
+                </div>
+                <nav class="nav">
+                    <a href="#how-it-works">사용 방법</a>
+                    <a href="#compatibility">크롬 호환성</a>
+                </nav>
             </div>
-            <nav class="nav">
-                <a href="#how-it-works">사용 방법</a>
-                <a href="#compatibility">크롬 호환성</a>
-            </nav>
         </header>
 
         <!-- 메인 섹션 -->
@@ -41,19 +45,20 @@
             <!-- 업로드 영역 -->
             <div class="upload-section" id="uploadSection">
                 <div class="upload-box" id="pdfUploadBox">
-                    <input type="file" id="pdfInput" accept=".pdf" hidden>
+                    <input type="file" id="pdfInput" accept=".pdf" hidden aria-label="PDF 파일 선택">
                     <div class="upload-content">
                         <div class="upload-icon">
-                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
                                 <path d="M24 32V16M24 16L18 22M24 16L30 22" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M40 24C40 32.8366 32.8366 40 24 40C15.1634 40 8 32.8366 8 24C8 15.1634 15.1634 8 24 8C32.8366 8 40 15.1634 40 24Z" stroke="#6B7280" stroke-width="2"/>
                             </svg>
                         </div>
                         <h3>PDF 파일 선택</h3>
                         <p>또는 여기에 파일을 드래그하세요</p>
-                        <button class="btn-primary" id="selectFileBtn" type="button">
+                        <button class="btn-primary" id="selectFileBtn" type="button" aria-describedby="upload-help">
                             파일 선택하기
                         </button>
+                        <p id="upload-help" class="sr-only">PDF 파일을 선택하여 애니메이션을 추가하세요</p>
                     </div>
                 </div>
             </div>
@@ -61,7 +66,7 @@
             <!-- 작업 영역 -->
             <div class="workspace" id="workspace" style="display: none;">
                 <!-- 단계 표시 -->
-                <div class="steps">
+                <div class="steps" role="progressbar" aria-label="PDF 생성 진행 단계">
                     <div class="step active" data-step="1">
                         <div class="step-number">1</div>
                         <span>페이지 선택</span>
@@ -81,14 +86,14 @@
                 </div>
 
                 <!-- 페이지 선택기 -->
-                <div class="page-selector" id="pageSelector">
+                <section class="page-selector" id="pageSelector">
                     <div class="pdf-info">
                         <h3 id="pdfFileName">PDF 파일 정보</h3>
                         <p id="pdfPageCount">총 페이지 수: -</p>
                         <p class="info-text">애니메이션이 삽입될 페이지를 선택하세요. 나머지 페이지는 원본 그대로 유지됩니다.</p>
                     </div>
                     
-                    <div class="pages-grid" id="pagesGrid">
+                    <div class="pages-grid" id="pagesGrid" role="grid" aria-label="PDF 페이지 선택">
                         <!-- 페이지 썸네일들이 여기에 동적으로 생성됩니다 -->
                     </div>
 
@@ -97,27 +102,27 @@
                             선택한 페이지로 계속
                         </button>
                     </div>
-                </div>
+                </section>
 
                 <!-- GIF 위치 편집기 -->
-                <div class="gif-position-editor" id="gifPositionEditor">
+                <section class="gif-position-editor" id="gifPositionEditor">
                     <div class="editor-container">
                         <div class="pdf-preview-container" id="pdfPreviewContainer">
-                            <canvas id="pdfPreviewCanvas" class="pdf-preview-canvas"></canvas>
-                            <div class="gif-overlay" id="gifOverlay" style="display: none;">
+                            <canvas id="pdfPreviewCanvas" class="pdf-preview-canvas" aria-label="PDF 페이지 미리보기"></canvas>
+                            <div class="gif-overlay" id="gifOverlay" style="display: none;" tabindex="0" role="button" aria-label="GIF 위치 조정">
                                 <div id="gifPreviewElement"></div>
-                                <div class="resize-handle nw"></div>
-                                <div class="resize-handle ne"></div>
-                                <div class="resize-handle sw"></div>
-                                <div class="resize-handle se"></div>
+                                <div class="resize-handle nw" aria-label="좌상단 크기 조정"></div>
+                                <div class="resize-handle ne" aria-label="우상단 크기 조정"></div>
+                                <div class="resize-handle sw" aria-label="좌하단 크기 조정"></div>
+                                <div class="resize-handle se" aria-label="우하단 크기 조정"></div>
                             </div>
                         </div>
 
                         <div class="controls-panel">
                             <div class="control-group">
-                                <label>GIF 파일</label>
+                                <label for="gifInput">GIF 파일</label>
                                 <div class="gif-upload-area" id="gifUploadArea">
-                                    <input type="file" id="gifInput" accept=".gif" hidden>
+                                    <input type="file" id="gifInput" accept=".gif" hidden aria-label="GIF 파일 선택">
                                     <p>GIF 파일을 선택하세요</p>
                                 </div>
                             </div>
@@ -125,31 +130,34 @@
                             <div class="control-group">
                                 <label>위치 (픽셀)</label>
                                 <div class="control-row">
-                                    <input type="number" class="control-input" id="posX" placeholder="X" min="0">
-                                    <input type="number" class="control-input" id="posY" placeholder="Y" min="0">
+                                    <input type="number" class="control-input" id="posX" placeholder="X" min="0" aria-label="X 좌표">
+                                    <input type="number" class="control-input" id="posY" placeholder="Y" min="0" aria-label="Y 좌표">
                                 </div>
                             </div>
 
                             <div class="control-group">
                                 <label>크기 (픽셀)</label>
                                 <div class="control-row">
-                                    <input type="number" class="control-input" id="gifWidth" placeholder="너비" min="10">
-                                    <input type="number" class="control-input" id="gifHeight" placeholder="높이" min="10">
+                                    <input type="number" class="control-input" id="gifWidth" placeholder="너비" min="10" aria-label="너비">
+                                    <input type="number" class="control-input" id="gifHeight" placeholder="높이" min="10" aria-label="높이">
                                 </div>
                             </div>
 
                             <div class="control-group">
                                 <label>애니메이션 설정</label>
-                                <div class="animation-mode">
+                                <fieldset class="animation-mode">
+                                    <legend class="sr-only">애니메이션 모드 선택</legend>
                                     <label class="radio-label">
-                                        <input type="radio" name="animationMode" value="ascii" checked>
+                                        <input type="radio" name="animationMode" value="ascii" checked aria-describedby="ascii-desc">
                                         <span>텍스트 애니메이션 (크롬 최적화)</span>
                                     </label>
+                                    <p id="ascii-desc" class="sr-only">크롬 브라우저에서 최적화된 텍스트 기반 애니메이션</p>
                                     <label class="radio-label">
-                                        <input type="radio" name="animationMode" value="button">
+                                        <input type="radio" name="animationMode" value="button" aria-describedby="button-desc">
                                         <span>버튼 애니메이션 (Acrobat 전용)</span>
                                     </label>
-                                </div>
+                                    <p id="button-desc" class="sr-only">Adobe Acrobat에서만 지원되는 버튼 기반 애니메이션</p>
+                                </fieldset>
                                 <div class="control-row">
                                     <label class="checkbox-label">
                                         <input type="checkbox" id="autoPlay" checked>
@@ -157,12 +165,13 @@
                                     </label>
                                 </div>
                                 <div class="control-row">
-                                    <input type="range" class="range-input" id="speedControl" min="100" max="2000" value="300">
-                                    <span id="speedDisplay">300ms</span>
+                                    <label for="speedControl">재생 속도:</label>
+                                    <input type="range" class="range-input" id="speedControl" min="100" max="2000" value="300" aria-label="애니메이션 속도">
+                                    <span id="speedDisplay" aria-live="polite">300ms</span>
                                 </div>
                                 <div class="control-row">
-                                    <label>해상도:</label>
-                                    <select id="asciiResolution" class="control-input">
+                                    <label for="asciiResolution">해상도:</label>
+                                    <select id="asciiResolution" class="control-input" aria-label="ASCII 애니메이션 해상도">
                                         <option value="40x20">40x20 (빠름)</option>
                                         <option value="60x30" selected>60x30 (균형)</option>
                                         <option value="80x40">80x40 (고품질)</option>
@@ -171,33 +180,33 @@
                             </div>
 
                             <div class="action-buttons" style="flex-direction: column;">
-                                <button class="btn-secondary" onclick="backToPageSelection()">이전</button>
-                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateCompatiblePdf()" disabled>
+                                <button class="btn-secondary" onclick="backToPageSelection()" type="button">이전</button>
+                                <button class="btn-primary" id="btnGeneratePdf" onclick="generateCompatiblePdf()" disabled type="button">
                                     크롬 호환 PDF 생성하기
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
             <!-- 처리 중 표시 -->
-            <div class="processing-overlay" id="processingOverlay" style="display: none;">
+            <div class="processing-overlay" id="processingOverlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="processingTitle">
                 <div class="processing-content">
-                    <div class="spinner"></div>
+                    <div class="spinner" aria-hidden="true"></div>
                     <h3 id="processingTitle">PDF 생성 중...</h3>
                     <p id="processingMessage">잠시만 기다려주세요</p>
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
-                    <p id="progressText">0%</p>
+                    <p id="progressText" aria-live="polite">0%</p>
                 </div>
             </div>
 
             <!-- 완료 화면 -->
             <div class="completion-screen" id="completionScreen" style="display: none;">
                 <div class="completion-content">
-                    <div class="success-icon">
+                    <div class="success-icon" aria-hidden="true">
                         <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="32" fill="#10B981" fill-opacity="0.1"/>
                             <path d="M20 32L28 40L44 24" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -206,14 +215,14 @@
                     <h2>크롬 호환 PDF 생성 완료!</h2>
                     <p>크롬 브라우저에서 동작하는 애니메이션 PDF 파일이 생성되었습니다</p>
                     <div class="completion-actions">
-                        <button class="btn-primary" onclick="downloadGeneratedPdf()">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <button class="btn-primary" onclick="downloadGeneratedPdf()" type="button">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                                 <path d="M10 14L6 10M10 14L14 10M10 14V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M3 17H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                             PDF 다운로드
                         </button>
-                        <button class="btn-secondary" onclick="startOver()">새 파일 시작</button>
+                        <button class="btn-secondary" onclick="startOver()" type="button">새 파일 시작</button>
                     </div>
                 </div>
             </div>
@@ -221,49 +230,53 @@
 
         <!-- 사용 방법 섹션 -->
         <section class="how-it-works" id="how-it-works">
-            <h2>크롬 브라우저 호환 애니메이션 PDF</h2>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">📄</div>
-                    <h3>PDF 업로드</h3>
-                    <p>편집할 PDF 파일을 선택하세요<br>모든 페이지가 보존됩니다</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3>페이지 선택</h3>
-                    <p>애니메이션을 넣을 특정 페이지를 선택하세요<br>나머지는 원본 그대로</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎬</div>
-                    <h3>텍스트 애니메이션</h3>
-                    <p>텍스트 필드 기반 애니메이션으로<br>크롬에서 안정적으로 작동</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">✨</div>
-                    <h3>호환 PDF 생성</h3>
-                    <p>크롬, 파이어폭스, Acrobat에서<br>모두 작동하는 PDF 파일</p>
+            <div class="container">
+                <h2>크롬 브라우저 호환 애니메이션 PDF</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon" aria-hidden="true">📄</div>
+                        <h3>PDF 업로드</h3>
+                        <p>편집할 PDF 파일을 선택하세요<br>모든 페이지가 보존됩니다</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" aria-hidden="true">🎯</div>
+                        <h3>페이지 선택</h3>
+                        <p>애니메이션을 넣을 특정 페이지를 선택하세요<br>나머지는 원본 그대로</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" aria-hidden="true">🎬</div>
+                        <h3>텍스트 애니메이션</h3>
+                        <p>텍스트 필드 기반 애니메이션으로<br>크롬에서 안정적으로 작동</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" aria-hidden="true">✨</div>
+                        <h3>호환 PDF 생성</h3>
+                        <p>크롬, 파이어폭스, Acrobat에서<br>모두 작동하는 PDF 파일</p>
+                    </div>
                 </div>
             </div>
         </section>
 
         <!-- 호환성 정보 섹션 -->
         <section class="compatibility-info" id="compatibility">
-            <h2>브라우저 호환성</h2>
-            <div class="compatibility-grid">
-                <div class="compatibility-card chrome-card">
-                    <h3>🌐 Chrome PDFium</h3>
-                    <p>텍스트 필드 프레임버퍼 방식으로 완벽 지원</p>
-                    <div class="support-level full">완전 지원</div>
-                </div>
-                <div class="compatibility-card firefox-card">
-                    <h3>🦊 Firefox PDF.js</h3>
-                    <p>기본 폼 필드 JavaScript 지원</p>
-                    <div class="support-level full">완전 지원</div>
-                </div>
-                <div class="compatibility-card acrobat-card">
-                    <h3>📄 Adobe Acrobat</h3>
-                    <p>모든 기능 지원 + 고급 애니메이션</p>
-                    <div class="support-level full">완전 지원</div>
+            <div class="container">
+                <h2>브라우저 호환성</h2>
+                <div class="compatibility-grid">
+                    <div class="compatibility-card chrome-card">
+                        <h3>🌐 Chrome PDFium</h3>
+                        <p>텍스트 필드 프레임버퍼 방식으로 완벽 지원</p>
+                        <div class="support-level full">완전 지원</div>
+                    </div>
+                    <div class="compatibility-card firefox-card">
+                        <h3>🦊 Firefox PDF.js</h3>
+                        <p>기본 폼 필드 JavaScript 지원</p>
+                        <div class="support-level full">완전 지원</div>
+                    </div>
+                    <div class="compatibility-card acrobat-card">
+                        <h3>📄 Adobe Acrobat</h3>
+                        <p>모든 기능 지원 + 고급 애니메이션</p>
+                        <div class="support-level full">완전 지원</div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -285,7 +298,44 @@
         console.log('- PDF-lib:', typeof PDFLib !== 'undefined');
         console.log('- gifuct-js:', typeof gifuct !== 'undefined');
         console.log('============================');
+        
+        // 라이브러리 로딩 확인
+        function checkLibraryLoading() {
+            const requiredLibs = {
+                'PDF.js': typeof pdfjsLib !== 'undefined',
+                'PDF-lib': typeof PDFLib !== 'undefined',
+                'gifuct-js': typeof gifuct !== 'undefined'
+            };
+            
+            const missing = Object.entries(requiredLibs)
+                .filter(([name, loaded]) => !loaded)
+                .map(([name]) => name);
+            
+            if (missing.length > 0) {
+                console.error('Missing libraries:', missing);
+                setTimeout(checkLibraryLoading, 1000); // 1초 후 재확인
+            } else {
+                console.log('All libraries loaded successfully');
+            }
+        }
+        
+        // 라이브러리 로딩 상태 확인
+        setTimeout(checkLibraryLoading, 500);
     </script>
     <script src="script.js"></script>
+
+    <!-- 구글 애널리틱스 또는 기타 추적 스크립트가 필요한 경우 여기에 추가 -->
+    
+    <!-- 서비스 워커 등록 (PWA를 원하는 경우) -->
+    <script>
+        // 서비스 워커 등록 (선택사항)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // navigator.serviceWorker.register('/sw.js')
+                //     .then(registration => console.log('SW registered'))
+                //     .catch(error => console.log('SW registration failed'));
+            });
+        }
+    </script>
 </body>
 </html>
