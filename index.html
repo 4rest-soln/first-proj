@@ -10,6 +10,61 @@
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+    <script>
+// 즉시 실행 - 파일 선택 버튼 수정
+(function() {
+    console.log('🚨 즉시 수정 시작');
+    
+    function fixFileButton() {
+        const pdfInput = document.getElementById('pdfInput');
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        
+        if (pdfInput && selectFileBtn) {
+            console.log('✅ 요소 발견, 수정 중...');
+            
+            // 기존 이벤트 제거하고 새로 설정
+            selectFileBtn.onclick = function(e) {
+                console.log('🖱️ 버튼 클릭됨!');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('📁 파일 다이얼로그 열기...');
+                pdfInput.click();
+                
+                return false;
+            };
+            
+            // HTML 속성으로도 백업 설정
+            selectFileBtn.setAttribute('onclick', 'document.getElementById("pdfInput").click(); return false;');
+            
+            console.log('✅ 파일 버튼 수정 완료!');
+            return true;
+        }
+        return false;
+    }
+    
+    // DOM 준비되면 즉시 실행
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixFileButton);
+    } else {
+        fixFileButton();
+    }
+    
+    // 1초 후에도 다시 시도
+    setTimeout(fixFileButton, 1000);
+    
+    // 전역 테스트 함수
+    window.testFileClick = function() {
+        const input = document.getElementById('pdfInput');
+        if (input) {
+            input.click();
+            console.log('✅ 테스트 클릭 실행됨');
+        }
+    };
+    
+    console.log('🛠️ testFileClick() 함수 준비됨');
+})();
+</script>
 <body>
     <div class="container">
         <!-- 헤더 -->
